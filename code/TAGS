@@ -1,0 +1,136 @@
+
+game.cpp,294
+SDL_Color ConvertToSDLColor(6,103
+texture RenderTextFromCenter(19,404
+void RenderFilledRect(83,2483
+RenderHollowCircle(91,2745
+RenderFilledCircle(129,3729
+RenderPhysicsBody(171,4992
+InitializeGame(186,5346
+CloseGame(262,7978
+HandleInput(271,8095
+ClearRenderer(325,9443
+main(333,9670
+
+timer.cpp,96
+TimerStart(4,26
+TimerEnd(14,189
+TimerPause(24,338
+TimerUnPause(36,562
+TimerGetTicks(48,790
+
+defines.h,642
+#define DEFINES_H4,56
+#define SDL_MAIN_HANDLED11,214
+typedef uint8_t uint8;19,351
+typedef uint16_t uint16;20,374
+typedef uint32_t uint32;21,399
+typedef uint64_t uint64;22,424
+typedef int8_t int8;24,450
+typedef int16_t int16;25,471
+typedef int32_t int32;26,494
+typedef int64_t int64;27,517
+typedef int32 bool32;28,540
+typedef float real32;30,563
+typedef double real64;31,585
+#define internal 33,609
+#define local_persist 34,633
+#define global 35,662
+#define Assert(39,704
+#define ARRAY_COUNT(41,768
+#define Kilobytes(43,827
+#define Megabytes(44,869
+#define Gigabytes(45,922
+#define Terabytes(46,975
+#define SWAP(49,1059
+
+game.h,169
+#define GAME_H2,15
+#define SCREEN_WIDTH 8,103
+#define SCREEN_HEIGHT 9,128
+#define PADDING_20 11,155
+}texture;texture20,303
+}mouse;mouse31,468
+}game;game46,678
+
+handmade_math.h,1812
+#define HANDMADE_MATH_H2,24
+#define PI 6,71
+inline real32 absf(8,96
+inline uint32 RoundReal32ToUint32(15,175
+inline real32 Sin(21,299
+inline real32 Cos(45,700
+Clamp(65,1048
+Clamp(87,1462
+typedef union vec2108,1887
+} vec2;115,1970
+typedef union vec3118,2027
+} vec3;125,2113
+typedef union vec4128,2170
+} vec4;140,2354
+inline vec2 vec(142,2363
+inline vec3 vec(150,2461
+inline vec4 vec(159,2582
+inline vec4 vec(169,2726
+inline real32 Dot(179,2854
+inline real32 Magnitude(189,3017
+inline vec2 Normalize(194,3076
+inline real32 Distance(202,3188
+inline real32 Angle(209,3353
+inline vec2 operator*operator241,3900
+inline vec2 operator*operator249,4029
+inline vec2 &operator*operator257,4158
+inline vec3 operator*operator290,4683
+inline vec3 Cross(309,5005
+inline real32 Inner(320,5204
+inline vec3 Hadamard(326,5319
+inline real32 LengthSq(337,5485
+inline real32 Length(343,5573
+inline vec3 Normalize(349,5674
+inline vec3 NormalizeOrZero(355,5770
+inline vec3 Lerp(367,5966
+inline vec4 operator*operator372,6050
+inline real32 Inner(397,6428
+inline real32 LengthSq(403,6555
+inline real32 Length(409,6643
+inline vec4 Normalize(415,6736
+typedef struct mat4x4421,6832
+} mat4x4;424,6876
+inline mat4x4 Identity(426,6887
+inline mat4x4 ScalingMat4x4(437,7022
+inline mat4x4 transMat4x4(448,7182
+inline mat4x4 operator*operator457,7317
+inline mat4x4 operator*operator470,7538
+inline vec4 operator*operator486,7840
+inline mat4x4 rotateZ(512,8288
+inline mat4x4 rotateX(526,8591
+inline mat4x4 transpose(540,8894
+inline mat4x4 projection(553,9096
+inline uint32 BGRAPack4x8(568,9415
+inline uint32 RGBAPack4x8(578,9735
+inline vec4 RGBAUnpack4x8(588,10055
+inline real32 LinearTosRGB(598,10332
+inline real32 RandomUnilateral(614,10593
+inline real32 RandomBilateral(619,10668
+
+physics2D.h,472
+#define PHYSICS2_D_H4,59
+const real32 MinBodySize 8,109
+const real32 MaxBodySize 9,151
+const real32 MinDensity 12,226
+const real32 MaxDensity 13,258
+    CIRCLE 17,307
+    BOX 18,323
+}shape;shape19,335
+}physics_body2D;physics_body2D42,712
+IsPhysicsBodyValid(45,737
+CreateCirclePhysicsBody2D(83,1795
+CreateBoxPhysicsBody2D(111,2534
+MovePhysicsBodyByLinearVelocity(140,3295
+IntersectCircles(146,3428
+CheckCollision2D(169,3936
+Update2DPhysicsBodies(182,4208
+
+timer.h,42
+#define TIMER_H4,54
+}timer;timer15,201

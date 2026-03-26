@@ -1,0 +1,52 @@
+version(2);
+
+project_name = "Physics Engine";
+
+patterns = {
+	"*.cpp",
+	"*.c",
+	"*.cc",
+	"*.h",
+	"*.bat",
+	"*.sh",
+	"*.4coder",
+	"Makefile",
+	".txt"
+};
+
+load_paths = {
+	.win = {
+			{ .path = ".", .relative = true, .recursive = false },
+			{ .path = "code/", .relative = true, .recursive = true },
+			{ .path = "misc/", .relative = true, .recursive = true }
+	},
+};
+
+commands = {
+	.build = {
+		.win = "echo building: Physics Engine & misc\build.bat",
+		.out = "*compilation*",
+		.footer_panel = false,
+		.save_dirty_files = true,
+		.cursor_at_end = true,
+	},
+	.debug = {
+		.win = "misc\debug.bat",
+		.footer_panel = false,
+		.save_dirty_files = true,
+		.cursor_at_end = false,
+	},
+	.test = {
+		.win = "echo Building Tests & misc\\test.bat",
+		.out = "*compilation*",		
+		.footer_panel = false,
+		.save_dirty_files = true,
+		.cursor_at_end = true,
+	},
+};
+
+fkey_command = {
+	.F1 = "build",
+	.F2 = "debug",
+	.F3 = "test"
+};
