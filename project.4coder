@@ -24,14 +24,14 @@ load_paths = {
 
 commands = {
 	.build = {
-		.win = "echo building: Physics Engine & misc\build.bat",
+		.win = "echo building: Physics Engine & misc\\build.bat",
 		.out = "*compilation*",
 		.footer_panel = false,
 		.save_dirty_files = true,
 		.cursor_at_end = true,
 	},
 	.debug = {
-		.win = "misc\debug.bat",
+		.win = "misc\\debug.bat",
 		.footer_panel = false,
 		.save_dirty_files = true,
 		.cursor_at_end = false,
@@ -43,10 +43,18 @@ commands = {
 		.save_dirty_files = true,
 		.cursor_at_end = true,
 	},
+	.todo = {
+		.win = "echo Things to-do & code\\todo.bat",
+		.out = "*compilation*",		
+		.footer_panel = false,
+		.save_dirty_files = true,
+		.cursor_at_end = true,
+	}
 };
 
 fkey_command = {
 	.F1 = "build",
 	.F2 = "debug",
-	.F3 = "test"
+	.F3 = "test",
+	.F4 = "todo"
 };

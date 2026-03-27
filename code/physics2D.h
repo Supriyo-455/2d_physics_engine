@@ -5,6 +5,7 @@
 
 #include "simple_math.h"
 
+// NOTE: Size unit - Meters
 const real32 MinBodySize = 0.01f * 0.01f;
 const real32 MaxBodySize = 64.0f * 64.0f;
 
@@ -46,7 +47,7 @@ IsPhysicsBodyValid(real32 Area, real32 Density)
 {    
     if(Area < MinBodySize)
     {
-        fprintf(stderr, "Unable to initialize physics body with area, %0.2f; Where min-area allowed is %0.2f\n", Area, MinBodySize);
+        LOG_ERROR("Unable to initialize physics body with area, %0.2f; Where min-area allowed is %0.2f\n", Area, MinBodySize);
         
         // NOTE: Empty body 
         return false;
@@ -54,7 +55,7 @@ IsPhysicsBodyValid(real32 Area, real32 Density)
     
     if(Area > MaxBodySize)
     {
-        fprintf(stderr, "Unable to initialize physics body with area, %0.2f; Where max-area allowed is %0.2f\n", Area, MaxBodySize);
+        LOG_ERROR("Unable to initialize physics body with area, %0.2f; Where max-area allowed is %0.2f\n", Area, MaxBodySize);
         
         // NOTE: Empty body 
         return false;
@@ -62,7 +63,7 @@ IsPhysicsBodyValid(real32 Area, real32 Density)
     
     if(Density < MinDensity)
     {
-        fprintf(stderr, "Unable to initialize physics body with density, %0.2f; Where min-density allowed is %0.2f\n", Density, MinDensity);
+        LOG_ERROR("Unable to initialize physics body with density, %0.2f; Where min-density allowed is %0.2f\n", Density, MinDensity);
         
         // NOTE: Empty body 
         return false;
@@ -70,7 +71,7 @@ IsPhysicsBodyValid(real32 Area, real32 Density)
     
     if(Density > MaxDensity)
     {
-        fprintf(stderr, "Unable to initialize physics body with density, %0.2f; Where max-density allowed is %0.2f\n", Density, MaxDensity);
+        LOG_ERROR("Unable to initialize physics body with density, %0.2f; Where max-density allowed is %0.2f\n", Density, MaxDensity);
         
         // NOTE: Empty body 
         return false;

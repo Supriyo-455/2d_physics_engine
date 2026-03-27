@@ -35,15 +35,14 @@ texture RenderTextFromCenter(int XPos,
     SDL_Surface* TextSurface = TTF_RenderText_Solid(Font, TextureText, SdlColor);
     if(TextSurface == NULL)
     {
-        // TODO: Logging library
-        fprintf(stderr,"Unable to render text surface! SDL_ttf Error: %s\n", TTF_GetError());
+        LOG_ERROR("Unable to render text surface! SDL_ttf Error: %s\n", TTF_GetError());
     }
     else
     {
         Texture.SdlTexture = SDL_CreateTextureFromSurface(Renderer, TextSurface);
         if(Texture.SdlTexture == NULL)
         {
-            fprintf(stderr,"Unable to create texture from rendered text! SDL Error: %s\n", SDL_GetError());
+            LOG_ERROR("Unable to create texture from rendered text! SDL Error: %s\n", SDL_GetError());
         }
         else
         {
@@ -168,12 +167,15 @@ RenderFilledCircle(SDL_Renderer* Renderer, int32 CX, int32 CY, int32 Radius, vec
 }
 
 void
-RenderPhysicsBody(SDL_Renderer* Renderer, physics_body2D* Body, vec4 Color)
+RenderPhysicsBody(SDL_Renderer* Renderer, physics_body2D* Body, vec4 FillColor, vec4 BorderColor)
 {
     switch(Body->Shape)
     {
         case CIRCLE:
-        RenderFilledCircle(Renderer, (int) Body->Position.x, (int) Body->Position.y, (int) Body->Radius, Color);
+        {
+            RenderFilledCircle(Renderer, (int) Body->Position.x, (int) Body->Position.y, (int) Body->Radius, FillColor);
+            RenderHollowCircle(Renderer, (int) Body->Position.x, (int) Body->Position.y, (int) Body->Radius, BorderColor);
+        }
         break;
         case BOX:
         break;
@@ -189,8 +191,7 @@ InitializeGame(game* Game)
     
     if(SDL_Init(SDL_INIT_VIDEO) < 0)
     {
-        // TODO: Logging library
-        fprintf(stderr,"SDL could not initialize! SDL Error: %s\n", SDL_GetError());
+        LOG_ERROR("SDL could not initialize! SDL Error: %s\n", SDL_GetError());
         success = false;
     }
     else
@@ -204,8 +205,7 @@ InitializeGame(game* Game)
         
         if(Game->Window == NULL)
         {
-            // TODO: Logging library
-            fprintf(stderr,"Window could not be created! SDL Error: %s\n", SDL_GetError() );
+            LOG_ERROR("Window could not be created! SDL Error: %s\n", SDL_GetError() );
             success = false;
         }
         else
@@ -215,8 +215,7 @@ InitializeGame(game* Game)
             
             if(Game->Renderer == NULL)
             {
-                // TODO: Logging library
-                fprintf(stderr,"Renderer could not be created! SDL Error: %s\n", SDL_GetError());
+                LOG_ERROR("Renderer could not be created! SDL Error: %s\n", SDL_GetError());
                 success = false;
             }
             else
@@ -226,16 +225,14 @@ InitializeGame(game* Game)
                 int imgFlags = IMG_INIT_PNG;
                 if (!(IMG_Init(imgFlags) & imgFlags))
                 {
-                    // TODO: Logging library
-                    fprintf(stderr,"SDL_image could not initialize! SDL_image Error: %s\n", IMG_GetError());
+                    LOG_ERROR("SDL_image could not initialize! SDL_image Error: %s\n", IMG_GetError());
                     return false;
                 }
                 
                 //Initialize SDL_ttf
                 if (TTF_Init() == -1)
                 {
-                    // TODO: Logging library
-                    fprintf(stderr, "SDL_ttf could not initialize! SDL_ttf Error: %s\n", TTF_GetError());
+                    LOG_ERROR("SDL_ttf could not initialize! SDL_ttf Error: %s\n", TTF_GetError());
                     return false;
                 }
                 else
@@ -243,8 +240,7 @@ InitializeGame(game* Game)
                     Game->Font = TTF_OpenFont("assets/font/lazy.ttf", 28);
                     if (Game->Font == NULL)
                     {
-                        // TODO: Logging library
-                        fprintf(stderr, "Failed to load lazy font! SDL_ttf Error: %s\n", TTF_GetError());
+                        LOG_ERROR("Failed to load lazy font! SDL_ttf Error: %s\n", TTF_GetError());
                         return false;
                     }
                     
@@ -298,6 +294,7 @@ HandleInput(game* Game)
                 
                 case SDLK_SPACE:
                 {
+                    LOG_INFO("Space pressed!!\n");
                     break;
                 }
                 
@@ -336,8 +333,7 @@ main(int argc, char* args[])
     
     if(!InitializeGame(&Game))
     {
-        // TODO: Logging library
-        fprintf(stderr, "Failed to initialize!\n");
+        LOG_ERROR("Failed to initialize!\n");
         return -1;
     }
     else
@@ -354,6 +350,13 @@ main(int argc, char* args[])
             .a=1.0f
         };
         
+        vec4 GRAY = {
+            .r=0.5f,
+            .g=0.5f,
+            .b=0.5f,
+            .a=1.0f
+        };
+        
         vec4 BLACK = {
             .r=0.0f,
             .g=0.0f,
@@ -361,8 +364,18 @@ main(int argc, char* args[])
             .a=0.0f
         };
         
+#define PHYSICS_BODY_COUNT 20
+        vec4 Colors[PHYSICS_BODY_COUNT] = {};
+        for(int i=0; i<PHYSICS_BODY_COUNT; i++)
+        {
+            float R = RandomUnilateral();
+            float G = RandomUnilateral();
+            float B = RandomUnilateral();
+            Colors[i] = vec(R, G, B, 1.0f);
+        }
+        
         physics_body2D Circles[20] = {0};
-        for(int i=0; i<20; i++)
+        for(int i=0; i<PHYSICS_BODY_COUNT; i++)
         {
             int X = (int) (RandomUnilateral() * SCREEN_WIDTH);
             int Y = (int) (RandomUnilateral() * SCREEN_HEIGHT);
@@ -379,12 +392,14 @@ main(int argc, char* args[])
         timer FPSTimer = {};
         TimerStart(&FPSTimer);
         
+        // TODO: Compress this into the fps timer struct
         uint32 LastFrameTicks = TimerGetTicks(&FPSTimer);
         uint32 CurrentFrameTicks = TimerGetTicks(&FPSTimer);
         uint32 DeltaTicks = CurrentFrameTicks - LastFrameTicks;
         
         while(Game.Running)
         {
+            // TODO: Compress this into the fps timer struct
             uint32 CurrentFrameTicks = SDL_GetTicks();
             DeltaTicks = CurrentFrameTicks - LastFrameTicks;
             LastFrameTicks = CurrentFrameTicks;
@@ -411,11 +426,12 @@ main(int argc, char* args[])
             
             Update2DPhysicsBodies(Circles, ARRAY_COUNT(Circles));
             
-            ClearRenderer(Game.Renderer, BLACK);
+            ClearRenderer(Game.Renderer, GRAY);
             
             for(int i=0; i<ARRAY_COUNT(Circles); i++)
             {
-                RenderPhysicsBody(Game.Renderer, &Circles[i], WHITE);
+                RenderPhysicsBody(Game.Renderer, &Circles[i], 
+                                  Colors[i], WHITE);
             }
             
             // NOTE: FPS Display

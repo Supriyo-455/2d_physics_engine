@@ -69,8 +69,7 @@ Clamp(int Value, int Min, int Max)
     
     if(Min > Max)
     {
-        // TODO: Logging library
-        fprintf(stderr, "Min Value can't be greater than Max Value!!!, Value provided %d, Min - %d, Max - %d", Value, Min, Max);
+        LOG_ERROR("Min Value can't be greater than Max Value!!!, Value provided %d, Min - %d, Max - %d", Value, Min, Max);
         return 0;
     }
     
@@ -91,8 +90,7 @@ Clamp(real32 Value, real32 Min, real32 Max)
     
     if(Min > Max)
     {
-        // TODO: Logging library
-        fprintf(stderr, "Min Value can't be greater than Max Value!!!, Value provided %0.2f, Min - %0.2f, Max - %0.2f", Value, Min, Max);
+        LOG_ERROR("Min Value can't be greater than Max Value!!!, Value provided %0.2f, Min - %0.2f, Max - %0.2f", Value, Min, Max);
         return 0;
     }
     
@@ -628,6 +626,7 @@ inline real32 LinearTosRGB(real32 L)
     return S;
 }
 
+// TODO: Better random number generator than this one current
 inline real32 RandomUnilateral()
 {
     return rand() / (float)RAND_MAX;
