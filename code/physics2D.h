@@ -34,12 +34,18 @@ typedef struct
     
     bool32 IsStatic;
     
+    vec2 SavedTransform;
+    bool32 TransformUpdateRequired;
+    
     shape Shape;
     
     // NOTE: This informations will change based on shape
     real32 Radius;
     real32 Width;
     real32 Height;
+    
+    // NOTE: For now we only supporting boxes
+    vec2 Vertices[4];
 }physics_body2D;
 
 bool32
@@ -108,6 +114,22 @@ CreateCirclePhysicsBody2D(vec2 Position, real32 Radius, real32 Density, real32 R
     return Body;
 }
 
+void 
+CreateBoxVertices(vec2* Vertices, real32 Width, real32 Height)
+{
+    Assert((ARRAY_COUNT(Vertices) == 4));
+    
+    real32 Left = -Width / 2.0f;
+    real32 Rigth = Left + Width;
+    real32 Bottom = -Height / 2.0f;
+    real32 Top = Bottom + Height;
+    
+    Vertices[0] = vec(Left, Top);
+    Vertices[1] = vec(Left, Bottom);
+    Vertices[2] = vec(Rigth, Top);
+    Vertices[3] = vec(Rigth, Bottom);
+}
+
 physics_body2D 
 CreateBoxPhysicsBody2D(vec2 Position, real32 Width, real32 Height, real32 Density, real32 Restitution = 0.0f, bool32 IsStatic = false)
 {   
@@ -133,6 +155,7 @@ CreateBoxPhysicsBody2D(vec2 Position, real32 Width, real32 Height, real32 Densit
     Body.Shape = BOX;
     Body.Width = Width;
     Body.Height = Height;
+    CreateBoxVertices(Body.Vertices, Body.Width, Body.Height);
     
     return Body;
 }

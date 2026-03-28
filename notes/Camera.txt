@@ -1,0 +1,24 @@
+
+## 2D Camera System
+
+1. The Transformation Logic
+The core of every camera system is the conversion formula. To find where an object should appear on your screen:
+
+ScreenX = (WorldX - CamX) * Zoom
+ScreenY = (WorldY - CamY) * zoom
+
+Panning - Increases or decreases CamX and CamY
+Zooming - Increases or decreases Zoom multiplier
+
+2. Implementation System
+
+	i) 
+		Method - Manual Scalling
+		
+		You calculate the SDL_Rect for every object manually before calling SDL_RenderCopy.
+	
+	ii)
+		Method - SDL_RenderSetScale
+		
+		Uses the hardware to scale everything drawn after the call.
+	

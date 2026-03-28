@@ -19,6 +19,7 @@ typedef struct
     uint32 Height;
 }texture;
 
+// TODO: SDL Indepent user input and output
 typedef struct
 {
     int XPos;
@@ -32,16 +33,30 @@ typedef struct
 
 typedef struct
 {
+    real32 Pan;
+    real32 Zoom;
+    
+    real32 UpperLeftX;
+    real32 UpperLeftY;
+    real32 Width;
+    real32 Height;
+    
+    vec2 Position;
+}simple_camera;
+
+typedef struct
+{
     SDL_Window* Window;
     SDL_Renderer* Renderer;
     TTF_Font* Font;
     SDL_Event Event;
     
+    simple_camera Camera;
+    
     real32 dx;
     real32 dy;
     real32 Speed;
     
-    mouse Mouse;
     bool32 Running;
 }game;
 

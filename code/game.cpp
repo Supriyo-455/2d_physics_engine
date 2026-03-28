@@ -1,5 +1,10 @@
 #include "game.h"
 
+/* TODOs....
+1) Camera
+2) Sound
+*/
+
 // NOTE: Including the cpp files for the function definitions
 #include "timer.cpp"
 
@@ -167,14 +172,20 @@ RenderFilledCircle(SDL_Renderer* Renderer, int32 CX, int32 CY, int32 Radius, vec
 }
 
 void
-RenderPhysicsBody(SDL_Renderer* Renderer, physics_body2D* Body, vec4 FillColor, vec4 BorderColor)
+RenderPhysicsBody(simple_camera* Camera, SDL_Renderer* Renderer, physics_body2D* Body, vec4 FillColor, vec4 BorderColor)
 {
     switch(Body->Shape)
     {
         case CIRCLE:
         {
-            RenderFilledCircle(Renderer, (int) Body->Position.x, (int) Body->Position.y, (int) Body->Radius, FillColor);
-            RenderHollowCircle(Renderer, (int) Body->Position.x, (int) Body->Position.y, (int) Body->Radius, BorderColor);
+            uint32 X = RoundReal32ToUint32((Body->Position.x - Camera->Position.x) * Camera->Zoom);
+            uint32 Y = RoundReal32ToUint32((Body->Position.y - Camera->Position.y) * Camera->Zoom);
+            
+            uint32 Radius = RoundReal32ToUint32(Body->Radius * Camera->Zoom);
+            
+            RenderFilledCircle(Renderer, X, Y, Radius, FillColor);
+            
+            RenderHollowCircle(Renderer, X, Y, Radius, BorderColor);
         }
         break;
         case BOX:
@@ -229,7 +240,7 @@ InitializeGame(game* Game)
                     return false;
                 }
                 
-                //Initialize SDL_ttf
+                // NOTE:Initialize SDL_ttf
                 if (TTF_Init() == -1)
                 {
                     LOG_ERROR("SDL_ttf could not initialize! SDL_ttf Error: %s\n", TTF_GetError());
@@ -243,9 +254,6 @@ InitializeGame(game* Game)
                         LOG_ERROR("Failed to load lazy font! SDL_ttf Error: %s\n", TTF_GetError());
                         return false;
                     }
-                    
-                    // NOTE: Initialize other parameters of game
-                    Game->Mouse = {0};
                 }
             }
         }
@@ -273,9 +281,30 @@ HandleInput(game* Game)
             Game->Running = false;
         }
         
-        if(Game->Event.type == SDL_MOUSEMOTION || Game->Event.type == SDL_MOUSEBUTTONDOWN || Game->Event.type == SDL_MOUSEBUTTONUP)
+        if(Game->Event.type == SDL_MOUSEMOTION && 
+           (Game->Event.motion.state & SDL_BUTTON_RMASK))
         {
-            SDL_GetMouseState(&Game->Mouse.XPos, &Game->Mouse.YPos);
+            real32 NewCamPositionX = Game->Camera.Position.x - (Game->Event.motion.xrel / Game->Camera.Zoom);
+            real32 NewCamPositionY = Game->Camera.Position.y - (Game->Event.motion.yrel / Game->Camera.Zoom);
+            
+            Game->Camera.Position = vec(NewCamPositionX, NewCamPositionY);
+        }
+        
+        if(Game->Event.type == SDL_MOUSEWHEEL)
+        {
+            int MouseX, MouseY;
+            SDL_GetMouseState(&MouseX, &MouseY);
+            
+            real32 WorldXBefore = (MouseX / Game->Camera.Zoom) + Game->Camera.Position.x;
+            real32 WorldYBefore = (MouseY / Game->Camera.Zoom) + Game->Camera.Position.y;
+            
+            if(Game->Event.wheel.y > 0)
+                Game->Camera.Zoom *= 1.1f;
+            else
+                Game->Camera.Zoom /= 1.1f;
+            
+            Game->Camera.Position.x = WorldXBefore - (MouseX / Game->Camera.Zoom);
+            Game->Camera.Position.y = WorldYBefore - (MouseY / Game->Camera.Zoom);
         }
         
         if(Game->Event.type == SDL_KEYDOWN)
@@ -338,10 +367,20 @@ main(int argc, char* args[])
     }
     else
     {
+        InitializeRandomNumbers();
+        
         Game.Running = true;
         Game.dx = 0.0f;
         Game.dy = 0.0f;
         Game.Speed = 100.0f;
+        
+        Game.Camera = {};
+        Game.Camera.Zoom = 1.0f;
+        Game.Camera.Pan = 0.0f;
+        Game.Camera.UpperLeftX = 0.0f;
+        Game.Camera.UpperLeftY = 0.0f;
+        Game.Camera.Width = SCREEN_WIDTH;
+        Game.Camera.Height = SCREEN_HEIGHT;
         
         vec4 WHITE = {
             .r=1.0f,
@@ -430,9 +469,22 @@ main(int argc, char* args[])
             
             for(int i=0; i<ARRAY_COUNT(Circles); i++)
             {
-                RenderPhysicsBody(Game.Renderer, &Circles[i], 
+                RenderPhysicsBody(&Game.Camera, Game.Renderer, &Circles[i], 
                                   Colors[i], WHITE);
             }
+            
+            // NOTE: Camera Info display
+            {
+                char buf[256] = {};
+                sprintf_s(buf, "CamX: %0.3f, CamY: %0.3f, Zoom: %0.3f", Game.Camera.Position.x, Game.Camera.Position.y, Game.Camera.Zoom);
+                RenderTextFromCenter(SCREEN_WIDTH / 2,
+                                     PADDING_20,
+                                     buf,
+                                     Game.Renderer,
+                                     Game.Font,
+                                     WHITE);
+            }
+            
             
             // NOTE: FPS Display
             {

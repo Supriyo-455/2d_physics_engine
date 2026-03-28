@@ -48,13 +48,13 @@ window:
     0.75: selected getting_started text:
     {
       selected
-      expression: "file:\"D:/projects/physics_engine/code/handmade_math.h\".data"
+      expression: "file:\"D:/projects/physics_engine/code/game.cpp\".data"
       auto: 1
       query: input: ""
-      cursor_line: 194
-      cursor_column: 2
-      mark_line: 194
-      mark_column: 2
+      cursor_line: 386
+      cursor_column: 1
+      mark_line: 386
+      mark_column: 1
     }
   }
   split_x

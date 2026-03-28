@@ -18,6 +18,12 @@ inline uint32 RoundReal32ToUint32(real32 f)
     return Result;
 }
 
+inline int Floor(real32 f)
+{
+    int Result = static_cast<int>(f + 0.5);
+    return Result;
+}
+
 inline real32 Sin(real32 x)
 {
     real32 sign = 1;
@@ -111,13 +117,6 @@ typedef union vec2
         real32 x, y;
     };
 } vec2;
-
-typedef struct
-{
-    real32 Sine;
-    real32 Cosine;
-    vec2 Position;
-}transformVec2;
 
 // TODO: Need to implement swizziling like glsl
 typedef union vec3
@@ -219,12 +218,18 @@ inline real32 Angle(vec2 A, vec2 B)
     return acosf(cosValue);
 }
 
-inline vec2 Transform(vec2 A, transformVec2 TransformVec2)
+inline vec2 Transform(vec2 A, vec2 Translation, real32 Angle)
 {
     vec2 Result = {};
     
-    Result.x = TransformVec2.Cosine * A.x - TransformVec2.Sine * A.y + TransformVec2.Position.y;
-    Result.x = TransformVec2.Sine * A.x + TransformVec2.Cosine * A.y + TransformVec2.Position.x;
+    real32 Cosine = cosf(Angle);
+    real32 Sine = sinf(Angle);
+    
+    real32 Rx = Cosine * A.x - Sine * A.y;
+    real32 Ry = Sine * A.x + Cosine * A.y;
+    
+    Result.x = Rx + Translation.x;
+    Result.y = Ry + Translation.y;
     
     return Result;
 }
@@ -626,10 +631,33 @@ inline real32 LinearTosRGB(real32 L)
     return S;
 }
 
-// TODO: Better random number generator than this one current
+// TODO: Research more on random numbers and different types of noise functions
+#include<immintrin.h>
+
+// TODO: These function will only work on x86 processors, need to add support for ARM in future
+bool32 GetRealRandomNumber(uint32* Result)
+{
+    bool32 Failures = 0;
+    int c;
+    
+    do{
+        c = _rdseed32_step(Result);
+        Failures += c == 1 ? 0 : 1;
+    }while(c != 1);
+    
+    return Failures;
+}
+
+void InitializeRandomNumbers()
+{
+    uint32 Seed = 0;
+    GetRealRandomNumber(&Seed);
+    srand(Seed);
+}
+
 inline real32 RandomUnilateral()
 {
-    return rand() / (float)RAND_MAX;
+    return rand() / (real32) RAND_MAX;
 }
 
 inline real32 RandomBilateral()

@@ -15,7 +15,7 @@ set source_assets=..\assets\
 set compiler=-std:c++20 -nologo -Od -Gm- -GR- -EHa- -W4 -WX
 
 :: IGNORE WARNINGS
-set compiler=%compiler% -wd4201 -wd4100 -wd4189 -wd4505 -wd4456
+set compiler=%compiler% -wd4201 -wd4100 -wd4189 -wd4505 -wd4456 -wd4127
 
 :: INCLUDE PATHS
 set compiler=%compiler% -I%third_party_path%include
