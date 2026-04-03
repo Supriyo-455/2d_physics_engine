@@ -1,8 +1,8 @@
 #include "game.h"
 
-/* TODOs....
-1) Camera
-2) Sound
+/* TODO:
+   1) Camera
+   2) Sound
 */
 
 // NOTE: Including the cpp files for the function definitions
@@ -21,16 +21,17 @@ SDL_Color ConvertToSDLColor(vec4 Color)
 }
 
 // TODO: Generalize texture
-texture RenderTextFromCenter(int XPos,
-                             int YPos,
-                             const char* TextureText,
-                             SDL_Renderer* Renderer,
-                             TTF_Font* Font,
-                             vec4 TextColor,
-                             SDL_Rect* Clip = NULL,
-                             double Angle = 0.0,
-                             SDL_Point* Center = NULL,
-                             SDL_RendererFlip Flip = SDL_FLIP_NONE)
+void RenderTextFromCenter(int XPos,
+                          int YPos,
+                          const char* TextureText,
+                          SDL_Renderer* Renderer,
+                          TTF_Font* Font,
+                          vec4 TextColor,
+                          int FontSize = 25,
+                          SDL_Rect* Clip = NULL,
+                          double Angle = 0.0,
+                          SDL_Point* Center = NULL,
+                          SDL_RendererFlip Flip = SDL_FLIP_NONE)
 {
     
     texture Texture = {};
@@ -54,11 +55,15 @@ texture RenderTextFromCenter(int XPos,
             Texture.Width = TextSurface->w;
             Texture.Height = TextSurface->h;
             
+            Assert(Texture.Height > 0);
+            
+            real32 AspectRatio = (real32)Texture.Width / (real32)Texture.Height;
+            
             SDL_Rect RenderQuad = {
-                XPos - (int) Texture.Width / 2,
-                YPos - (int) Texture.Height / 2,
-                (int) Texture.Width,
-                (int) Texture.Height
+                XPos - (int)(AspectRatio * FontSize) / 2,
+                YPos - FontSize / 2,
+                (int)(AspectRatio * FontSize),
+                FontSize
             };
             
             if(Clip != NULL)
@@ -80,8 +85,6 @@ texture RenderTextFromCenter(int XPos,
         SDL_DestroyTexture(Texture.SdlTexture);
         SDL_FreeSurface(TextSurface);
     }
-    
-    return Texture;
 }
 
 void RenderFilledRect(SDL_Renderer* Renderer, SDL_Rect* Rect, vec4 Color)
@@ -89,6 +92,13 @@ void RenderFilledRect(SDL_Renderer* Renderer, SDL_Rect* Rect, vec4 Color)
     SDL_Color SdlColor = ConvertToSDLColor(Color);
     SDL_SetRenderDrawColor(Renderer, SdlColor.r, SdlColor.g, SdlColor.b, SdlColor.a);
     SDL_RenderFillRect(Renderer, Rect);
+}
+
+void RenderHollowRect(SDL_Renderer* Renderer, SDL_Rect* Rect, vec4 Color)
+{
+    SDL_Color SdlColor = ConvertToSDLColor(Color);
+    SDL_SetRenderDrawColor(Renderer, SdlColor.r, SdlColor.g, SdlColor.b, SdlColor.a);
+    SDL_RenderDrawRect(Renderer, Rect);
 }
 
 void 
@@ -184,14 +194,47 @@ RenderPhysicsBody(simple_camera* Camera, SDL_Renderer* Renderer, physics_body2D*
             uint32 Radius = RoundReal32ToUint32(Body->Radius * Camera->Zoom);
             
             RenderFilledCircle(Renderer, X, Y, Radius, FillColor);
-            
             RenderHollowCircle(Renderer, X, Y, Radius, BorderColor);
         }
         break;
         case BOX:
+        {
+            SDL_Vertex SdlVerts[4] = {};
+            SDL_Color Fill = ConvertToSDLColor(FillColor);
+            
+            for(int i = 0; i < 4; i++)
+            {
+                SdlVerts[i].position.x = (Body->Vertices[i].x - Camera->Position.x) * Camera->Zoom;
+                SdlVerts[i].position.y = (Body->Vertices[i].y - Camera->Position.y) * Camera->Zoom;
+                SdlVerts[i].color = Fill;
+            }
+            
+            SDL_RenderGeometry(Renderer, NULL, SdlVerts, 4, Body->Triangles, 6);
+            
+            SDL_Color Border = ConvertToSDLColor(BorderColor);
+            SDL_SetRenderDrawColor(Renderer, Border.r, Border.g, Border.b, Border.a);
+            for(int i = 0; i < 4; i++)
+            {
+                int Next = (i + 1) % 4;
+                SDL_RenderDrawLineF(Renderer,
+                                    SdlVerts[i].position.x, SdlVerts[i].position.y,
+                                    SdlVerts[Next].position.x, SdlVerts[Next].position.y);
+            }
+        }
         break;
         default:
         break;
+    }
+}
+
+void GenerateRandomColor(vec4* ColorArray, int ArrayCount)
+{
+    for(int i=0; i<ArrayCount; i++)
+    {
+        float R = RandomUnilateral();
+        float G = RandomUnilateral();
+        float B = RandomUnilateral();
+        ColorArray[i] = vec(R, G, B, 1.0f);
     }
 }
 
@@ -404,28 +447,39 @@ main(int argc, char* args[])
         };
         
 #define PHYSICS_BODY_COUNT 20
-        vec4 Colors[PHYSICS_BODY_COUNT] = {};
-        for(int i=0; i<PHYSICS_BODY_COUNT; i++)
-        {
-            float R = RandomUnilateral();
-            float G = RandomUnilateral();
-            float B = RandomUnilateral();
-            Colors[i] = vec(R, G, B, 1.0f);
-        }
+        vec4 Colors1[PHYSICS_BODY_COUNT] = {0};
+        GenerateRandomColor(Colors1, PHYSICS_BODY_COUNT);
         
-        physics_body2D Circles[20] = {0};
+        vec4 Colors2[PHYSICS_BODY_COUNT] = {0};
+        GenerateRandomColor(Colors2, PHYSICS_BODY_COUNT);
+        
+        physics_body2D Circles[PHYSICS_BODY_COUNT] = {0};
+        physics_body2D Boxes[PHYSICS_BODY_COUNT] = {0};
         for(int i=0; i<PHYSICS_BODY_COUNT; i++)
         {
-            int X = (int) (RandomUnilateral() * SCREEN_WIDTH);
-            int Y = (int) (RandomUnilateral() * SCREEN_HEIGHT);
+            real32 X = RandomUnilateral() * SCREEN_WIDTH;
+            real32 Y = RandomUnilateral() * SCREEN_HEIGHT;
             
             real32 Radius = 20.0f;
             
-            Circles[i] = CreateCirclePhysicsBody2D(vec((real32) X, (real32) Y),
+            Circles[i] = CreateCirclePhysicsBody2D(vec(X, Y),
                                                    Radius,
                                                    0.60f,
                                                    0.0f,
                                                    false);
+            
+            X = RandomUnilateral() * SCREEN_WIDTH;
+            Y = RandomUnilateral() * SCREEN_HEIGHT;
+            
+            real32 Width = 20.0f;
+            real32 Height = 20.0f;
+            
+            Boxes[i] = CreateBoxPhysicsBody2D(vec(X, Y),
+                                              Width,
+                                              Height,
+                                              0.60f,
+                                              0.0f,
+                                              false);
         }
         
         timer FPSTimer = {};
@@ -435,6 +489,8 @@ main(int argc, char* args[])
         uint32 LastFrameTicks = TimerGetTicks(&FPSTimer);
         uint32 CurrentFrameTicks = TimerGetTicks(&FPSTimer);
         uint32 DeltaTicks = CurrentFrameTicks - LastFrameTicks;
+        
+        real32 TestAngle = 0.01f;
         
         while(Game.Running)
         {
@@ -460,17 +516,37 @@ main(int argc, char* args[])
             
             for(int i = 0; i < ARRAY_COUNT(Circles); i++)
             {
-                MovePhysicsBodyByLinearVelocity(&Circles[i]);
+                MovePhysicsBody(&Circles[i]);
             }
-            
             Update2DPhysicsBodies(Circles, ARRAY_COUNT(Circles));
+            
+#if 1
+            for(int i = 0; i < ARRAY_COUNT(Boxes); i++)
+            {
+                Boxes[i].RotationalVelocity = 0.01f;
+                Boxes[i].LinearVelocity = vec(0.0f, 0.0f);
+                
+                RotatePhysicsBody(&Boxes[i]);
+                MovePhysicsBody(&Boxes[i]);
+                
+                vec2* TransformedVertices = GetPhysicsBodyTransformedVertices(&Boxes[i]);
+                for(int j = 0; j < ARRAY_COUNT(Boxes[i].Vertices); j++)
+                {
+                    Boxes[i].Vertices[j] = TransformedVertices[j];
+                }
+            }
+#endif
+            
             
             ClearRenderer(Game.Renderer, GRAY);
             
             for(int i=0; i<ARRAY_COUNT(Circles); i++)
             {
                 RenderPhysicsBody(&Game.Camera, Game.Renderer, &Circles[i], 
-                                  Colors[i], WHITE);
+                                  Colors1[i], WHITE);
+                
+                RenderPhysicsBody(&Game.Camera, Game.Renderer, &Boxes[i], 
+                                  Colors2[i], WHITE);
             }
             
             // NOTE: Camera Info display

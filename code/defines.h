@@ -45,9 +45,9 @@ typedef double real64;
 #define Terabytes(Value) (Gigabytes(Value) * 1024LL)
 
 
-#define MIN(TYPE, A, B) (A < B) ? A : B
+#define MIN(A, B) ((A < B) ? A : B)
 
-#define MAX(TYPE, A, B) (A > B) ? A : B
+#define MAX(A, B) ((A > B) ? A : B)
 
 #define SWAP(TYPE, A, B) { TYPE _MACRO_TEMP_; _MACRO_TEMP_ = A; A = B; B = _MACRO_TEMP_; } 
 

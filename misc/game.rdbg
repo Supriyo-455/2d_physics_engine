@@ -6,15 +6,19 @@ window:
   size: 1536.000000 825.599976
   panels:
   {
-    0.25:
+    0.458464:
     {
-      0.25:
+      0.843586:
       {
-        watch: expression: ""
+        watch:
+        {
+          expression: ""
+          watch: "ARRAY_COUNT(&Boxes)"
+        }
         watch: expression: "query:types"
         watch: selected expression: "query:locals"
       }
-      0.25:
+      0.052138:
       {
         watch:
         {
@@ -25,7 +29,7 @@ window:
         watch: expression: "query:breakpoints"
         watch: expression: "query:watch_pins"
       }
-      0.25:
+      0.052138:
       {
         disasm:
         {
@@ -35,7 +39,7 @@ window:
         }
         text: expression: "query:output"
       }
-      0.25:
+      0.052138:
       {
         watch:
         {
@@ -45,15 +49,15 @@ window:
         watch: expression: "query:modules"
       }
     }
-    0.75: selected getting_started text:
+    0.541536: selected getting_started text:
     {
       selected
       expression: "file:\"D:/projects/physics_engine/code/game.cpp\".data"
       auto: 1
       query: input: ""
-      cursor_line: 386
+      cursor_line: 212
       cursor_column: 1
-      mark_line: 386
+      mark_line: 212
       mark_column: 1
     }
   }

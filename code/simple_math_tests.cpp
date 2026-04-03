@@ -50,8 +50,28 @@ int test_vectors() {
     vec2 b2 = vec(1.0f, 0.0f);
     ASSERT_NEAR(Magnitude(a2), 5.0f, "Vec2 Magnitude");
     ASSERT_NEAR(Dot(a2, b2), 3.0f, "Vec2 Dot");
+    
     vec2 n2 = Normalize(a2);
     ASSERT_NEAR(Magnitude(n2), 1.0f, "Vec2 Normalize");
+    
+    vec2 p1 = vec(0.0f, 0.0f);
+    vec2 p2 = vec(3.0f, 4.0f);
+    ASSERT_NEAR(Distance(p1, p2), 5.0f, "Distance: (0,0) to (3,4) should be 5");
+    ASSERT_NEAR(Distance(p2, p1), 5.0f, "Distance: Commutative property");
+    ASSERT_NEAR(Distance(p1, p1), 0.0f, "Distance: Point to itself is 0");
+    
+    vec2 right = vec(1.0f, 0.0f);
+    vec2 up    = vec(0.0f, 1.0f);
+    real32 halfPi = PI / 2.0f; // 90 degrees
+    ASSERT_NEAR(Angle(right, up), halfPi, "Angle: 90 degrees between X and Y axes");
+    ASSERT_NEAR(Angle(right, right), 0.0f, "Angle: 0 degrees for identical vectors");
+    
+    vec2 startPos = vec(1.0f, 0.0f);
+    vec2 offset   = vec(5.0f, 5.0f);
+    vec2 result   = Transform(startPos, offset, halfPi);
+    
+    ASSERT_NEAR(result.x, 5.0f, "Transform: X coordinate after rotation and translation");
+    ASSERT_NEAR(result.y, 6.0f, "Transform: Y coordinate after rotation and translation");
     
     // vec3
     vec3 a3 = vec(1, 0, 0);

@@ -34,9 +34,6 @@ typedef struct
     
     bool32 IsStatic;
     
-    vec2 SavedTransform;
-    bool32 TransformUpdateRequired;
-    
     shape Shape;
     
     // NOTE: This informations will change based on shape
@@ -46,6 +43,11 @@ typedef struct
     
     // NOTE: For now we only supporting boxes
     vec2 Vertices[4];
+    vec2 TransformedVertices[4];
+    bool32 TransformUpdateRequired;
+    
+    // NOTE: 2 triangles, each has 3 vertices
+    int Triangles[6];
 }physics_body2D;
 
 bool32
@@ -114,22 +116,6 @@ CreateCirclePhysicsBody2D(vec2 Position, real32 Radius, real32 Density, real32 R
     return Body;
 }
 
-void 
-CreateBoxVertices(vec2* Vertices, real32 Width, real32 Height)
-{
-    Assert((ARRAY_COUNT(Vertices) == 4));
-    
-    real32 Left = -Width / 2.0f;
-    real32 Rigth = Left + Width;
-    real32 Bottom = -Height / 2.0f;
-    real32 Top = Bottom + Height;
-    
-    Vertices[0] = vec(Left, Top);
-    Vertices[1] = vec(Left, Bottom);
-    Vertices[2] = vec(Rigth, Top);
-    Vertices[3] = vec(Rigth, Bottom);
-}
-
 physics_body2D 
 CreateBoxPhysicsBody2D(vec2 Position, real32 Width, real32 Height, real32 Density, real32 Restitution = 0.0f, bool32 IsStatic = false)
 {   
@@ -155,15 +141,57 @@ CreateBoxPhysicsBody2D(vec2 Position, real32 Width, real32 Height, real32 Densit
     Body.Shape = BOX;
     Body.Width = Width;
     Body.Height = Height;
-    CreateBoxVertices(Body.Vertices, Body.Width, Body.Height);
+    
+    real32 Left = Body.Position.x - Width / 2.0f;
+    real32 Rigth = Left + Width;
+    real32 Bottom = Body.Position.y - Height / 2.0f;
+    real32 Top = Bottom + Height;
+    
+    Body.Vertices[0] = vec(Left, Top);
+    Body.Vertices[1] = vec(Left, Bottom);
+    Body.Vertices[2] = vec(Rigth, Bottom);
+    Body.Vertices[3] = vec(Rigth, Top);
+    
+    memset(Body.TransformedVertices, 0, ARRAY_COUNT(Body.TransformedVertices));
+    Body.TransformUpdateRequired = true;
+    
+    Body.Triangles[0] = 0;
+    Body.Triangles[1] = 1;
+    Body.Triangles[2] = 2;
+    Body.Triangles[3] = 2;
+    Body.Triangles[4] = 3;
+    Body.Triangles[5] = 0;
     
     return Body;
 }
 
 inline void
-MovePhysicsBodyByLinearVelocity(physics_body2D* Body)
+MovePhysicsBody(physics_body2D* Body)
 {
     Body->Position = Body->Position + Body->LinearVelocity;
+    Body->TransformUpdateRequired = true;
+}
+
+inline void
+RotatePhysicsBody(physics_body2D* Body)
+{
+    Body->Rotation = Body->Rotation + Body->RotationalVelocity;
+    Body->TransformUpdateRequired = true;
+}
+
+vec2*
+GetPhysicsBodyTransformedVertices(physics_body2D* Body)
+{
+    if(Body->TransformUpdateRequired)
+    {
+        for(int i=0; i<ARRAY_COUNT(Body->Vertices); i++)
+        {
+            Body->TransformedVertices[i] = Transform(Body->Vertices[i], Body->Position, Body->LinearVelocity, Body->RotationalVelocity);
+        }
+        Body->TransformUpdateRequired = false;
+    }
+    
+    return Body->TransformedVertices;
 }
 
 inline bool32
