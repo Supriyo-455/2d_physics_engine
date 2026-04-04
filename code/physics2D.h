@@ -223,6 +223,7 @@ IntersectPolygons(physics_body2D* BodyA, physics_body2D* BodyB,
         vec2 Edge = Vb - Va;
         // NOTE: Axis is the normal vector of Edge
         vec2 Axis = vec(-Edge.y, Edge.x);
+        Axis = Normalize(Axis);
         
         real32 MinA, MaxA, MinB, MaxB;
         
@@ -251,6 +252,7 @@ IntersectPolygons(physics_body2D* BodyA, physics_body2D* BodyB,
         vec2 Edge = Vb - Va;
         // NOTE: Axis is the normal vector of Edge
         vec2 Axis = vec(-Edge.y, Edge.x);
+        Axis = Normalize(Axis);
         
         real32 MinA, MaxA, MinB, MaxB;
         
@@ -270,9 +272,6 @@ IntersectPolygons(physics_body2D* BodyA, physics_body2D* BodyB,
             *OutNormal = Axis;
         }
     }
-    
-    *OutDepth /= Magnitude(*OutNormal);
-    *OutNormal = Normalize(*OutNormal);
     
     vec2 Direction = BodyB->Position - BodyA->Position;
     if(Dot(Direction, *OutNormal) < 0.0f)
