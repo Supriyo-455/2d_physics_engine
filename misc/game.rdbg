@@ -54,10 +54,14 @@ window:
       selected
       expression: "file:\"D:/projects/physics_engine/code/game.cpp\".data"
       auto: 1
-      query: input: ""
-      cursor_line: 212
+      query:
+      {
+        input: IsVisible
+        cmd: search
+      }
+      cursor_line: 161
       cursor_column: 1
-      mark_line: 212
+      mark_line: 161
       mark_column: 1
     }
   }

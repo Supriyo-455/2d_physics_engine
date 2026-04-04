@@ -4,8 +4,13 @@
 1. The Transformation Logic
 The core of every camera system is the conversion formula. To find where an object should appear on your screen:
 
-ScreenX = (WorldX - CamX) * Zoom
-ScreenY = (WorldY - CamY) * zoom
+As camera position is at center, we need to calculate camera position relative to upper left corner...
+
+OffsetX = ScreenX - (Game->Camera.Width / 2.0f);
+OffsetY = ScreenY - (Game->Camera.Height / 2.0f);
+            
+WorldX = Game->Camera.Position.x + (OffsetX / Game->Camera.Zoom);
+WorldY = Game->Camera.Position.y + (OffsetY / Game->Camera.Zoom);
 
 Panning - Increases or decreases CamX and CamY
 Zooming - Increases or decreases Zoom multiplier

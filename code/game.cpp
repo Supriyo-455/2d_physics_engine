@@ -1,8 +1,9 @@
 #include "game.h"
 
 /* TODO:
-   1) Camera
-   2) Sound
+   1) Camera - (Simple camera done, Need more advanced camera with actual frustum culling)
+   2) Sound - (No sound features yet)
+3) Opengl - (As soon as the basic 2d physics engine completed, need to work on opengl rendering)
 */
 
 // NOTE: Including the cpp files for the function definitions
@@ -20,6 +21,7 @@ SDL_Color ConvertToSDLColor(vec4 Color)
     return SdlColor;
 }
 
+// TODO: Need to replace this cpu based calls with Opengl
 // TODO: Generalize texture
 void RenderTextFromCenter(int XPos,
                           int YPos,
@@ -87,6 +89,7 @@ void RenderTextFromCenter(int XPos,
     }
 }
 
+// TODO: Need to replace this cpu based calls with Opengl
 void RenderFilledRect(SDL_Renderer* Renderer, SDL_Rect* Rect, vec4 Color)
 {
     SDL_Color SdlColor = ConvertToSDLColor(Color);
@@ -94,6 +97,7 @@ void RenderFilledRect(SDL_Renderer* Renderer, SDL_Rect* Rect, vec4 Color)
     SDL_RenderFillRect(Renderer, Rect);
 }
 
+// TODO: Need to replace this cpu based calls with Opengl
 void RenderHollowRect(SDL_Renderer* Renderer, SDL_Rect* Rect, vec4 Color)
 {
     SDL_Color SdlColor = ConvertToSDLColor(Color);
@@ -101,6 +105,7 @@ void RenderHollowRect(SDL_Renderer* Renderer, SDL_Rect* Rect, vec4 Color)
     SDL_RenderDrawRect(Renderer, Rect);
 }
 
+// TODO: Need to replace this cpu based calls with Opengl
 void 
 RenderHollowCircle(SDL_Renderer* Renderer, int32 CX, int32 CY, int32 Radius, vec4 Color)
 {
@@ -139,6 +144,29 @@ RenderHollowCircle(SDL_Renderer* Renderer, int32 CX, int32 CY, int32 Radius, vec
     }
 }
 
+bool32 IsVisible(real32 ObjectX, real32 ObjectY, real32 ObjectWidth, real32 ObjectHeight, simple_camera* Camera) {
+    
+    real32 ObjectLeft = ObjectX - (ObjectWidth / 2.0f); 
+    real32 ObjectRight = ObjectLeft + ObjectWidth;
+    real32 ObjectTop = ObjectY - (ObjectHeight / 2.0f);
+    real32 ObjectBottom = ObjectTop + ObjectHeight;
+    
+    real32 ViewPortWidth = Camera->Width / Camera->Zoom;
+    real32 ViewPortHeight = Camera->Height / Camera->Zoom;
+    real32 ViewPortLeft = Camera->Position.x - (ViewPortWidth / 2.0f);
+    real32 ViewPortRight = ViewPortLeft + ViewPortWidth;
+    real32 ViewPortTop = Camera->Position.y - (ViewPortHeight / 2.0f);
+    real32 ViewPortBottom = ViewPortTop + ViewPortHeight;
+    
+    //LOG_INFO("Viewport Top: %0.2f, Left: %0.2f, Bottom: %0.2f, Right: %0.2f\n", ViewPortTop, ViewPortLeft, ViewPortBottom, ViewPortRight);
+    
+    return (ObjectRight > ViewPortLeft &&
+            ObjectBottom > ViewPortTop &&
+            ObjectLeft < ViewPortRight &&
+            ObjectTop < ViewPortBottom);
+}
+
+// TODO: Need to replace this cpu based calls with Opengl
 void 
 RenderFilledCircle(SDL_Renderer* Renderer, int32 CX, int32 CY, int32 Radius, vec4 Color)
 {
@@ -188,13 +216,23 @@ RenderPhysicsBody(simple_camera* Camera, SDL_Renderer* Renderer, physics_body2D*
     {
         case CIRCLE:
         {
-            uint32 X = RoundReal32ToUint32((Body->Position.x - Camera->Position.x) * Camera->Zoom);
-            uint32 Y = RoundReal32ToUint32((Body->Position.y - Camera->Position.y) * Camera->Zoom);
+            uint32 X = RoundReal32ToUint32((Body->Position.x - Camera->Position.x) * Camera->Zoom + (Camera->Width / 2.0f));
+            uint32 Y = RoundReal32ToUint32((Body->Position.y - Camera->Position.y) * Camera->Zoom + (Camera->Height / 2.0f));
             
             uint32 Radius = RoundReal32ToUint32(Body->Radius * Camera->Zoom);
             
             RenderFilledCircle(Renderer, X, Y, Radius, FillColor);
             RenderHollowCircle(Renderer, X, Y, Radius, BorderColor);
+            
+            // TODO: This is ugly and hacky
+            SDL_Color Border = ConvertToSDLColor(BorderColor);
+            SDL_SetRenderDrawColor(Renderer, Border.r, Border.g, Border.b, Border.a);
+            
+            real32 RCos = X  + Radius * cosf(Body->Rotation);
+            real32 RSin = Y  + Radius * sinf(Body->Rotation);
+            SDL_RenderDrawLineF(Renderer,
+                                (real32) X, (real32) Y,
+                                RCos, RSin);
         }
         break;
         case BOX:
@@ -204,8 +242,10 @@ RenderPhysicsBody(simple_camera* Camera, SDL_Renderer* Renderer, physics_body2D*
             
             for(int i = 0; i < 4; i++)
             {
-                SdlVerts[i].position.x = (Body->Vertices[i].x - Camera->Position.x) * Camera->Zoom;
-                SdlVerts[i].position.y = (Body->Vertices[i].y - Camera->Position.y) * Camera->Zoom;
+                SdlVerts[i].position.x = (Body->Vertices[i].x - Camera->Position.x) * Camera->Zoom + (Camera->Width / 2.0f);
+                
+                SdlVerts[i].position.y = (Body->Vertices[i].y - Camera->Position.y) * Camera->Zoom + (Camera->Height / 2.0f);
+                
                 SdlVerts[i].color = Fill;
             }
             
@@ -338,16 +378,19 @@ HandleInput(game* Game)
             int MouseX, MouseY;
             SDL_GetMouseState(&MouseX, &MouseY);
             
-            real32 WorldXBefore = (MouseX / Game->Camera.Zoom) + Game->Camera.Position.x;
-            real32 WorldYBefore = (MouseY / Game->Camera.Zoom) + Game->Camera.Position.y;
+            real32 OffsetX = (real32)MouseX - (Game->Camera.Width / 2.0f);
+            real32 OffsetY = (real32)MouseY - (Game->Camera.Height / 2.0f);
+            
+            real32 WorldXBefore = Game->Camera.Position.x + (OffsetX / Game->Camera.Zoom);
+            real32 WorldYBefore = Game->Camera.Position.y + (OffsetY / Game->Camera.Zoom);
             
             if(Game->Event.wheel.y > 0)
                 Game->Camera.Zoom *= 1.1f;
             else
                 Game->Camera.Zoom /= 1.1f;
             
-            Game->Camera.Position.x = WorldXBefore - (MouseX / Game->Camera.Zoom);
-            Game->Camera.Position.y = WorldYBefore - (MouseY / Game->Camera.Zoom);
+            Game->Camera.Position.x = WorldXBefore - (OffsetX / Game->Camera.Zoom);
+            Game->Camera.Position.y = WorldYBefore - (OffsetY / Game->Camera.Zoom);
         }
         
         if(Game->Event.type == SDL_KEYDOWN)
@@ -420,10 +463,10 @@ main(int argc, char* args[])
         Game.Camera = {};
         Game.Camera.Zoom = 1.0f;
         Game.Camera.Pan = 0.0f;
-        Game.Camera.UpperLeftX = 0.0f;
-        Game.Camera.UpperLeftY = 0.0f;
         Game.Camera.Width = SCREEN_WIDTH;
         Game.Camera.Height = SCREEN_HEIGHT;
+        Game.Camera.Position.x = SCREEN_WIDTH / 2.0f;
+        Game.Camera.Position.y = SCREEN_HEIGHT / 2.0f;
         
         vec4 WHITE = {
             .r=1.0f,
@@ -516,14 +559,16 @@ main(int argc, char* args[])
             
             for(int i = 0; i < ARRAY_COUNT(Circles); i++)
             {
+                Circles[i].RotationalVelocity = 0.1f;
+                RotatePhysicsBody(&Circles[i]);
+                
                 MovePhysicsBody(&Circles[i]);
             }
             Update2DPhysicsBodies(Circles, ARRAY_COUNT(Circles));
             
-#if 1
             for(int i = 0; i < ARRAY_COUNT(Boxes); i++)
             {
-                Boxes[i].RotationalVelocity = 0.01f;
+                Boxes[i].RotationalVelocity = 0.1f;
                 Boxes[i].LinearVelocity = vec(0.0f, 0.0f);
                 
                 RotatePhysicsBody(&Boxes[i]);
@@ -535,18 +580,25 @@ main(int argc, char* args[])
                     Boxes[i].Vertices[j] = TransformedVertices[j];
                 }
             }
-#endif
-            
             
             ClearRenderer(Game.Renderer, GRAY);
             
-            for(int i=0; i<ARRAY_COUNT(Circles); i++)
+            for(int i=0; i<PHYSICS_BODY_COUNT; i++)
             {
-                RenderPhysicsBody(&Game.Camera, Game.Renderer, &Circles[i], 
-                                  Colors1[i], WHITE);
+                if(IsVisible(Circles[i].Position.x, Circles[i].Position.y, 2.0f * Circles[i].Radius, 2.0f * Circles[i].Radius, &Game.Camera))
+                {
+                    LOG_INFO("Circle ID: %d\n", i);
+                    
+                    RenderPhysicsBody(&Game.Camera, Game.Renderer, &Circles[i], 
+                                      Colors1[i], WHITE);
+                }
                 
-                RenderPhysicsBody(&Game.Camera, Game.Renderer, &Boxes[i], 
-                                  Colors2[i], WHITE);
+                if(IsVisible(Boxes[i].Position.x, Boxes[i].Position.y, Boxes[i].Width, Boxes[i].Height, &Game.Camera))
+                {
+                    LOG_INFO("Box ID: %d\n", i);
+                    RenderPhysicsBody(&Game.Camera, Game.Renderer, &Boxes[i], 
+                                      Colors2[i], WHITE);
+                }
             }
             
             // NOTE: Camera Info display

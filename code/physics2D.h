@@ -144,8 +144,8 @@ CreateBoxPhysicsBody2D(vec2 Position, real32 Width, real32 Height, real32 Densit
     
     real32 Left = Body.Position.x - Width / 2.0f;
     real32 Rigth = Left + Width;
-    real32 Bottom = Body.Position.y - Height / 2.0f;
-    real32 Top = Bottom + Height;
+    real32 Top = Body.Position.y - Height / 2.0f;
+    real32 Bottom = Top + Height;
     
     Body.Vertices[0] = vec(Left, Top);
     Body.Vertices[1] = vec(Left, Bottom);

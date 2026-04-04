@@ -36,8 +36,6 @@ typedef struct
     real32 Pan;
     real32 Zoom;
     
-    real32 UpperLeftX;
-    real32 UpperLeftY;
     real32 Width;
     real32 Height;
     
