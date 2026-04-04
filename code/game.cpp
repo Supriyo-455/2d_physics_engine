@@ -90,23 +90,7 @@ void RenderTextFromCenter(int XPos,
 }
 
 // TODO: Need to replace this cpu based calls with Opengl
-void RenderFilledRect(SDL_Renderer* Renderer, SDL_Rect* Rect, vec4 Color)
-{
-    SDL_Color SdlColor = ConvertToSDLColor(Color);
-    SDL_SetRenderDrawColor(Renderer, SdlColor.r, SdlColor.g, SdlColor.b, SdlColor.a);
-    SDL_RenderFillRect(Renderer, Rect);
-}
-
-// TODO: Need to replace this cpu based calls with Opengl
-void RenderHollowRect(SDL_Renderer* Renderer, SDL_Rect* Rect, vec4 Color)
-{
-    SDL_Color SdlColor = ConvertToSDLColor(Color);
-    SDL_SetRenderDrawColor(Renderer, SdlColor.r, SdlColor.g, SdlColor.b, SdlColor.a);
-    SDL_RenderDrawRect(Renderer, Rect);
-}
-
-// TODO: Need to replace this cpu based calls with Opengl
-void 
+void
 RenderHollowCircle(SDL_Renderer* Renderer, int32 CX, int32 CY, int32 Radius, vec4 Color)
 {
     SDL_Color SdlColor = ConvertToSDLColor(Color);
@@ -144,7 +128,8 @@ RenderHollowCircle(SDL_Renderer* Renderer, int32 CX, int32 CY, int32 Radius, vec
     }
 }
 
-bool32 IsVisible(real32 ObjectX, real32 ObjectY, real32 ObjectWidth, real32 ObjectHeight, simple_camera* Camera) {
+bool32 
+IsVisible(real32 ObjectX, real32 ObjectY, real32 ObjectWidth, real32 ObjectHeight, simple_camera* Camera) {
     
     real32 ObjectLeft = ObjectX - (ObjectWidth / 2.0f); 
     real32 ObjectRight = ObjectLeft + ObjectWidth;
@@ -157,8 +142,6 @@ bool32 IsVisible(real32 ObjectX, real32 ObjectY, real32 ObjectWidth, real32 Obje
     real32 ViewPortRight = ViewPortLeft + ViewPortWidth;
     real32 ViewPortTop = Camera->Position.y - (ViewPortHeight / 2.0f);
     real32 ViewPortBottom = ViewPortTop + ViewPortHeight;
-    
-    //LOG_INFO("Viewport Top: %0.2f, Left: %0.2f, Bottom: %0.2f, Right: %0.2f\n", ViewPortTop, ViewPortLeft, ViewPortBottom, ViewPortRight);
     
     return (ObjectRight > ViewPortLeft &&
             ObjectBottom > ViewPortTop &&
@@ -222,14 +205,19 @@ RenderPhysicsBody(simple_camera* Camera, SDL_Renderer* Renderer, physics_body2D*
             uint32 Radius = RoundReal32ToUint32(Body->Radius * Camera->Zoom);
             
             RenderFilledCircle(Renderer, X, Y, Radius, FillColor);
+            
+            if(Body->IsCollided)
+                BorderColor = vec(1.0f, 0.0f, 0.0f, 1.0f);
+            
             RenderHollowCircle(Renderer, X, Y, Radius, BorderColor);
             
-            // TODO: This is ugly and hacky
+            // TODO: This is ugly and hacky, no actual rotation of circle
             SDL_Color Border = ConvertToSDLColor(BorderColor);
             SDL_SetRenderDrawColor(Renderer, Border.r, Border.g, Border.b, Border.a);
             
             real32 RCos = X  + Radius * cosf(Body->Rotation);
             real32 RSin = Y  + Radius * sinf(Body->Rotation);
+            
             SDL_RenderDrawLineF(Renderer,
                                 (real32) X, (real32) Y,
                                 RCos, RSin);
@@ -252,6 +240,9 @@ RenderPhysicsBody(simple_camera* Camera, SDL_Renderer* Renderer, physics_body2D*
             SDL_RenderGeometry(Renderer, NULL, SdlVerts, 4, Body->Triangles, 6);
             
             SDL_Color Border = ConvertToSDLColor(BorderColor);
+            if(Body->IsCollided)
+                Border = {255, 0, 0, 255};
+            
             SDL_SetRenderDrawColor(Renderer, Border.r, Border.g, Border.b, Border.a);
             for(int i = 0; i < 4; i++)
             {
@@ -267,7 +258,8 @@ RenderPhysicsBody(simple_camera* Camera, SDL_Renderer* Renderer, physics_body2D*
     }
 }
 
-void GenerateRandomColor(vec4* ColorArray, int ArrayCount)
+void 
+GenerateRandomColor(vec4* ColorArray, int ArrayCount)
 {
     for(int i=0; i<ArrayCount; i++)
     {
@@ -550,11 +542,11 @@ main(int argc, char* args[])
             {            
                 vec2 Direction = Normalize(vec(Game.dx, Game.dy));
                 vec2 Velocity = (Direction * Game.Speed) * DeltaTimeSeconds ;
-                Circles[0].LinearVelocity = Velocity;
+                Boxes[0].LinearVelocity = Velocity;
             }
             else
             {
-                Circles[0].LinearVelocity = vec(0.0f, 0.0f);
+                Boxes[0].LinearVelocity = vec(0.0f, 0.0f);
             }
             
             for(int i = 0; i < ARRAY_COUNT(Circles); i++)
@@ -564,14 +556,12 @@ main(int argc, char* args[])
                 
                 MovePhysicsBody(&Circles[i]);
             }
-            Update2DPhysicsBodies(Circles, ARRAY_COUNT(Circles));
             
             for(int i = 0; i < ARRAY_COUNT(Boxes); i++)
             {
-                Boxes[i].RotationalVelocity = 0.1f;
-                Boxes[i].LinearVelocity = vec(0.0f, 0.0f);
+                //Boxes[i].RotationalVelocity = 0.1f;
                 
-                RotatePhysicsBody(&Boxes[i]);
+                //RotatePhysicsBody(&Boxes[i]);
                 MovePhysicsBody(&Boxes[i]);
                 
                 vec2* TransformedVertices = GetPhysicsBodyTransformedVertices(&Boxes[i]);
@@ -581,21 +571,21 @@ main(int argc, char* args[])
                 }
             }
             
+            Update2DPhysicsBodies(Circles, ARRAY_COUNT(Circles));
+            Update2DPhysicsBodies(Boxes, ARRAY_COUNT(Boxes));
+            
             ClearRenderer(Game.Renderer, GRAY);
             
             for(int i=0; i<PHYSICS_BODY_COUNT; i++)
             {
                 if(IsVisible(Circles[i].Position.x, Circles[i].Position.y, 2.0f * Circles[i].Radius, 2.0f * Circles[i].Radius, &Game.Camera))
                 {
-                    LOG_INFO("Circle ID: %d\n", i);
-                    
                     RenderPhysicsBody(&Game.Camera, Game.Renderer, &Circles[i], 
                                       Colors1[i], WHITE);
                 }
                 
                 if(IsVisible(Boxes[i].Position.x, Boxes[i].Position.y, Boxes[i].Width, Boxes[i].Height, &Game.Camera))
                 {
-                    LOG_INFO("Box ID: %d\n", i);
                     RenderPhysicsBody(&Game.Camera, Game.Renderer, &Boxes[i], 
                                       Colors2[i], WHITE);
                 }

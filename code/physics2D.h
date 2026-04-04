@@ -33,6 +33,7 @@ typedef struct
     real32 Area;
     
     bool32 IsStatic;
+    bool32 IsCollided;
     
     shape Shape;
     
@@ -95,11 +96,7 @@ CreateCirclePhysicsBody2D(vec2 Position, real32 Radius, real32 Density, real32 R
     real32 Area = PI * Radius * Radius;
     real32 Mass = Density * Area;
     
-    if(!IsPhysicsBodyValid(Area, Density))
-    {
-        // NOTE: Return empty body
-        return Body;
-    }
+    Assert(IsPhysicsBodyValid(Area, Density));
     
     Body.RotationalVelocity = 0.0f;
     Body.LinearVelocity = vec(0.0f, 0.0f);
@@ -123,11 +120,7 @@ CreateBoxPhysicsBody2D(vec2 Position, real32 Width, real32 Height, real32 Densit
     real32 Area = Width * Height;
     real32 Mass = Density * Area;
     
-    if(!IsPhysicsBodyValid(Area, Density))
-    {
-        // NOTE: Return empty body
-        return Body;
-    }
+    Assert(IsPhysicsBodyValid(Area, Density));
     
     Body.RotationalVelocity = 0.0f;
     Body.LinearVelocity = vec(0.0f, 0.0f);
@@ -141,6 +134,8 @@ CreateBoxPhysicsBody2D(vec2 Position, real32 Width, real32 Height, real32 Densit
     Body.Shape = BOX;
     Body.Width = Width;
     Body.Height = Height;
+    
+    Body.IsCollided = false;
     
     real32 Left = Body.Position.x - Width / 2.0f;
     real32 Rigth = Left + Width;
@@ -194,24 +189,117 @@ GetPhysicsBodyTransformedVertices(physics_body2D* Body)
     return Body->TransformedVertices;
 }
 
-inline bool32
-IntersectCircles(physics_body2D* A, physics_body2D* B, vec2* OutNormal, real32* OutDepth)
+inline void
+ProjectVertices(vec2* Vertices, int VerticesCount, vec2 Axis, real32* Min, real32* Max)
 {
-    Assert(A->Shape == CIRCLE);
-    Assert(B->Shape == CIRCLE);
+    *Min = FLT_MAX;
+    *Max = FLT_MIN;
     
+    for(int i=0; i<VerticesCount; i++)
+    {
+        vec2 V = Vertices[i];
+        real32 Proj = Dot(V, Axis);
+        
+        if(Proj < *Min)
+            *Min = Proj;
+        if(Proj > *Max)
+            *Max = Proj;
+    }
+}
+
+inline bool32
+IntersectPolygons(physics_body2D* BodyA, physics_body2D* BodyB,
+                  vec2* OutNormal, real32* OutDepth)
+{
+    *OutNormal = vec(0.0f, 0.0f);
+    *OutDepth = FLT_MAX;
+    
+    for(int i=0; i<ARRAY_COUNT(BodyA->Vertices); i++)
+    {
+        int Next = (i + 1) % ARRAY_COUNT(BodyA->Vertices);
+        vec2 Va = BodyA->Vertices[i];
+        vec2 Vb = BodyA->Vertices[Next];
+        
+        vec2 Edge = Vb - Va;
+        // NOTE: Axis is the normal vector of Edge
+        vec2 Axis = vec(-Edge.y, Edge.x);
+        
+        real32 MinA, MaxA, MinB, MaxB;
+        
+        ProjectVertices(BodyA->Vertices, ARRAY_COUNT(BodyA->Vertices), Axis, &MinA, &MaxA);
+        ProjectVertices(BodyB->Vertices, ARRAY_COUNT(BodyB->Vertices), Axis, &MinB, &MaxB);
+        
+        if(MinA >= MaxB || MinB >= MaxA)
+        {
+            return false;
+        }
+        
+        real32 AxisDepth = MIN(MaxB - MinA, MaxA - MinB);
+        if(AxisDepth < *OutDepth)
+        {
+            *OutDepth = AxisDepth;
+            *OutNormal = Axis;
+        }
+    }
+    
+    for(int i=0; i<ARRAY_COUNT(BodyB->Vertices); i++)
+    {
+        int Next = (i + 1) % ARRAY_COUNT(BodyB->Vertices);
+        vec2 Va = BodyB->Vertices[i];
+        vec2 Vb = BodyB->Vertices[Next];
+        
+        vec2 Edge = Vb - Va;
+        // NOTE: Axis is the normal vector of Edge
+        vec2 Axis = vec(-Edge.y, Edge.x);
+        
+        real32 MinA, MaxA, MinB, MaxB;
+        
+        ProjectVertices(BodyA->Vertices, ARRAY_COUNT(BodyA->Vertices), Axis, &MinA, &MaxA);
+        ProjectVertices(BodyB->Vertices, ARRAY_COUNT(BodyB->Vertices), Axis, &MinB, &MaxB);
+        
+        if(MinA >= MaxB || MinB >= MaxA)
+        {
+            return false;
+        }
+        
+        
+        real32 AxisDepth = MIN(MaxB - MinA, MaxA - MinB);
+        if(AxisDepth < *OutDepth)
+        {
+            *OutDepth = AxisDepth;
+            *OutNormal = Axis;
+        }
+    }
+    
+    *OutDepth /= Magnitude(*OutNormal);
+    *OutNormal = Normalize(*OutNormal);
+    
+    vec2 Direction = BodyB->Position - BodyA->Position;
+    if(Dot(Direction, *OutNormal) < 0.0f)
+    {
+        *OutNormal *= -1.0f;
+    }
+    
+    return true;
+}
+
+inline bool32
+IntersectCircles(vec2 PosA, real32 RadiusA, 
+                 vec2 PosB, real32 RadiusB, 
+                 vec2* OutNormal, real32* OutDepth)
+{
     *OutNormal = vec(0.0f, 0.0f);
     *OutDepth = 0.0f;
     
-    real32 distance = Distance(A->Position, B->Position);
-    real32 Radii = A->Radius + B->Radius;
+    real32 distance = Distance(PosA, PosB);
+    real32 Radii = RadiusA + RadiusB;
     
     if(distance >= Radii)
     {
         return false;
     }
     
-    *OutNormal = Normalize(B->Position - A->Position);
+    *OutNormal = Normalize(PosB - PosA);
     *OutDepth = Radii - distance;
     
     return true;
@@ -224,11 +312,14 @@ CheckCollision2D(physics_body2D* A, physics_body2D* B, vec2* OutNormal, real32* 
     
     if(A->Shape == CIRCLE && B->Shape == CIRCLE)
     {
-        Result = IntersectCircles(A, B, OutNormal, OutDepth);
+        Result = IntersectCircles(A->Position, A->Radius, 
+                                  B->Position, B->Radius, 
+                                  OutNormal, OutDepth);
     }
     else if(A->Shape == BOX && B->Shape == BOX)
     {
-        // Result = IntersectBoxes(A, B, OutNormal, OutDepth);
+        Result = IntersectPolygons(A, B,
+                                   OutNormal, OutDepth);
     }
     else
     {
@@ -243,16 +334,30 @@ Update2DPhysicsBodies(physics_body2D* Bodies, int BodyCount)
 {
     vec2 OutNormal = vec(0.0f, 0.0f);
     real32 OutDepth = 0.0f;
-    for(int i = 0; i < BodyCount - 1; i++)
+    
+    // NOTE: Reset collision state
+    for(int i=0; i<BodyCount; i++)
+    {
+        Bodies[i].IsCollided = false;
+    }
+    
+    for(int i=0; i<BodyCount-1; i++)
     {
         physics_body2D* BodyA = &Bodies[i];
         
-        for(int j = i + 1; j < BodyCount; j++)
+        for(int j=i+1; j<BodyCount; j++)
         {
             physics_body2D* BodyB = &Bodies[j];
             
             if(CheckCollision2D(BodyA, BodyB, &OutNormal, &OutDepth))
             {
+                BodyA->IsCollided = true;
+                BodyB->IsCollided = true;
+                
+                // TODO: Box collisions not working properly
+                BodyB->LinearVelocity = OutNormal * (OutDepth / 2.0f);
+                BodyA->LinearVelocity = -OutNormal * (OutDepth / 2.0f);
+#if 0
                 // NOTE: Fix overlap immediately
                 BodyA->Position = BodyA->Position - (OutNormal * (OutDepth / 2.0f));
                 BodyB->Position = BodyB->Position + (OutNormal * (OutDepth / 2.0f));
@@ -268,6 +373,7 @@ Update2DPhysicsBodies(physics_body2D* Bodies, int BodyCount)
                     BodyA->LinearVelocity = BodyA->LinearVelocity - (OutNormal * (VelAlongNormalA * BodyA->Restitution));
                     BodyB->LinearVelocity = BodyB->LinearVelocity + (OutNormal * (VelAlongNormalB * BodyB->Restitution));
                 }
+#endif
             }
         }
     }
