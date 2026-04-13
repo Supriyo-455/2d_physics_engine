@@ -1,51 +1,63 @@
 ;; ============================================================
 ;; EMACS CONFIG - SUPRIYO PAUL
+;; Emacs 29+ with LSP/Clangd
 ;; ============================================================
 
 
 ;; ============================================================
-;; 1. UI & LAYOUT
+;; 1. PACKAGE MANAGER
 ;; ============================================================
 
-;; Disable startup screen
+(require 'package)
+(setq package-user-dir (expand-file-name ".emacs_pkgs" default-directory))
+(add-to-list 'package-archives '("melpa" . "https://melpa.org/packages/") t)
+(package-initialize)
+
+;; Install LSP mode if not present
+(unless (package-installed-p 'lsp-mode)
+  (package-refresh-contents)
+  (package-install 'lsp-mode))
+
+
+;; ============================================================
+;; 2. UI & LAYOUT
+;; ============================================================
+
+;; Disable startup screen and UI chrome
 (setq inhibit-startup-screen t)
-
-;; Disable UI bars we don't need
-(menu-bar-mode -1)
-(when (fboundp 'tool-bar-mode)   (tool-bar-mode -1))
-(when (fboundp 'scroll-bar-mode) (scroll-bar-mode -1))
+(menu-bar-mode   -1)
+(tool-bar-mode   -1)
+(scroll-bar-mode -1)
 
 ;; Highlight the current line
 (global-hl-line-mode 1)
 
-;; On startup, delete any extra windows and split into 2 vertical panels
-;; Uses split-window-right on Emacs 24+, falls back to split-window-horizontally on Emacs 22
+;; Show line numbers in code buffers
+(add-hook 'c-mode-common-hook 'display-line-numbers-mode)
+
+;; On startup split into 2 vertical panels
 (add-hook 'emacs-startup-hook
           (lambda ()
             (delete-other-windows)
-            (if (fboundp 'split-window-right)
-                (split-window-right)
-              (split-window-horizontally))))
+            (split-window-right)))
 
 
 ;; ============================================================
-;; 2. FONT & COLORS
+;; 3. FONT & COLORS
 ;; ============================================================
 
-;; Consolas 14pt — clean monospace font, ships with Windows by default
+;; Consolas 14pt — clean monospace, ships with Windows
 (set-face-attribute 'default nil :family "Consolas" :height 140)
 
-;; Base terminal green-on-black color scheme
+;; Green on black color scheme
 (set-foreground-color "#A8C8A0") ;; soft sage green text
-(set-background-color "#0D1210") ;; very dark green-black background
+(set-background-color "#0D1210") ;; very dark green-black
 (set-cursor-color     "#39FF14") ;; bright neon green cursor
 
-;; Enable multiline font-lock for better type/keyword detection
-(setq font-lock-multiline t)
-(setq-default font-lock-maximum-decoration t)
+;; Simple consistent highlighting — avoids Emacs font-lock inconsistency bugs
+(setq-default font-lock-maximum-decoration 1)
 
-;; Force a full re-highlight pass after every save
-;; Fixes inconsistent highlighting after edits in Emacs 22
+;; Force full re-highlight after every save
 (add-hook 'after-save-hook
           (lambda ()
             (when (member major-mode '(c-mode c++-mode))
@@ -54,59 +66,60 @@
 (custom-set-faces
  ;; --- Core UI ---
  '(default                      ((t (:foreground "#A8C8A0" :background "#0D1210"))))
- '(region                       ((t (:background "#1A3320"))))  ;; selection highlight
- '(highlight                    ((t (:background "#111A10"))))  ;; current line highlight
- '(fringe                       ((t (:background "#0D1210"))))  ;; left/right fringe
+ '(region                       ((t (:background "#1A3320"))))  ;; selection
+ '(highlight                    ((t (:background "#111A10"))))  ;; current line
+ '(fringe                       ((t (:background "#0D1210"))))
  '(minibuffer-prompt            ((t (:foreground "#39FF14" :weight bold))))
+ '(line-number                  ((t (:foreground "#2A4A2A" :background "#0D1210"))))
+ '(line-number-current-line     ((t (:foreground "#39FF14" :background "#0D1210"))))
 
- ;; --- Syntax Highlighting ---
- '(font-lock-comment-face       ((t (:foreground "#3A5C3A" :slant italic)))) ;; muted green comments
- '(font-lock-string-face        ((t (:foreground "#5DBB63"))))               ;; mid green strings
- '(font-lock-keyword-face       ((t (:foreground "#39FF14" :weight bold))))  ;; neon green keywords
- '(font-lock-function-name-face ((t (:foreground "#74C365"))))               ;; mantis green functions
- '(font-lock-variable-name-face ((t (:foreground "#8FBC8F"))))               ;; dark sea green variables
- '(font-lock-type-face          ((t (:foreground "#00A550"))))               ;; deep green types
- '(font-lock-constant-face      ((t (:foreground "#00FF7F"))))               ;; spring green constants
+ ;; --- Syntax ---
+ '(font-lock-comment-face       ((t (:foreground "#3A5C3A" :slant italic))))
+ '(font-lock-string-face        ((t (:foreground "#5DBB63"))))
+ '(font-lock-keyword-face       ((t (:foreground "#39FF14" :weight bold))))
+ '(font-lock-function-name-face ((t (:foreground "#74C365"))))
+ '(font-lock-preprocessor-face  ((t (:foreground "#39FF14" :weight bold))))
+ '(font-lock-type-face          ((t (:foreground "#00A550"))))
+ '(font-lock-constant-face      ((t (:foreground "#00FF7F"))))
 
  ;; --- Mode Line ---
- '(mode-line                    ((t (:foreground "#0D1210" :background "#39FF14")))) ;; active
- '(mode-line-inactive           ((t (:foreground "#3A5C3A" :background "#111A10")))) ;; inactive
+ '(mode-line                    ((t (:foreground "#0D1210" :background "#39FF14"))))
+ '(mode-line-inactive           ((t (:foreground "#3A5C3A" :background "#111A10"))))
 
  ;; --- Bracket Matching ---
- '(show-paren-match             ((t (:background "#1A5C1A" :foreground "#39FF14" :weight bold)))) ;; matching bracket
- '(show-paren-mismatch          ((t (:background "#5C1A1A" :foreground "#FF4444" :weight bold)))) ;; mismatched bracket
+ '(show-paren-match             ((t (:background "#1A5C1A" :foreground "#39FF14" :weight bold))))
+ '(show-paren-mismatch          ((t (:background "#5C1A1A" :foreground "#FF4444" :weight bold))))
 
  ;; --- Compilation Buffer ---
- '(compilation-error            ((t (:foreground "#FF4444" :weight bold)))) ;; red errors
- '(compilation-warning          ((t (:foreground "#FFA500" :weight bold)))) ;; orange warnings
- '(compilation-info             ((t (:foreground "#39FF14" :weight bold)))) ;; green info/notes
- '(compilation-line-number      ((t (:foreground "#A8C8A0"))))              ;; soft line numbers
- '(compilation-column-number    ((t (:foreground "#A8C8A0"))))              ;; soft column numbers
- '(compilation-mode-line-exit   ((t (:foreground "#39FF14" :weight bold)))) ;; green on success
- '(compilation-mode-line-fail   ((t (:foreground "#FF4444" :weight bold)))) ;; red on failure
- '(compilation-mode-line-run    ((t (:foreground "#FFA500" :weight bold)))));; orange while running
+ '(compilation-error            ((t (:foreground "#FF4444" :weight bold))))
+ '(compilation-warning          ((t (:foreground "#FFA500" :weight bold))))
+ '(compilation-info             ((t (:foreground "#39FF14" :weight bold))))
+ '(compilation-line-number      ((t (:foreground "#A8C8A0"))))
+ '(compilation-column-number    ((t (:foreground "#A8C8A0"))))
+ '(compilation-mode-line-exit   ((t (:foreground "#39FF14" :weight bold))))
+ '(compilation-mode-line-fail   ((t (:foreground "#FF4444" :weight bold))))
+ '(compilation-mode-line-run    ((t (:foreground "#FFA500" :weight bold)))))
 
 
 ;; ============================================================
-;; 3. BRACKET MATCHING
+;; 4. BRACKET MATCHING
 ;; ============================================================
 
-;; Highlight matching bracket/brace when cursor is on one
+;; Highlight matching bracket instantly
 ;; Green = match found, Red = no match
 (show-paren-mode 1)
-(setq show-paren-delay 0) ;; no delay, instant highlight
+(setq show-paren-delay 0)
 
 
 ;; ============================================================
-;; 4. C/C++ STYLE
+;; 5. C/C++ STYLE
 ;; ============================================================
 
-;; Use Linux style as base — closest to Allman with consistent brace indentation
 (setq c-default-style "linux")
-(setq-default c-basic-offset 4)     ;; 4 space indentation
-(setq-default indent-tabs-mode nil) ;; spaces only, no tabs
+(setq-default c-basic-offset 4)
+(setq-default indent-tabs-mode nil)
 
-;; Fix case label indentation inside switch blocks
+;; Fix switch/case indentation
 (add-hook 'c-mode-common-hook
           (lambda ()
             (c-set-offset 'case-label 4)
@@ -114,52 +127,48 @@
 
 
 ;; ============================================================
-;; 5. EDITING BEHAVIOR
+;; 6. EDITING BEHAVIOR
 ;; ============================================================
 
-(cua-mode 1)              ;; Standard Ctrl+C, Ctrl+V, Ctrl+X, Ctrl+Z
-(setq truncate-lines nil) ;; Wrap long lines instead of truncating
-(setq word-wrap t)        ;; Wrap at word boundaries not mid-word
-(setq make-backup-files nil)  ;; No ~ backup files
-(setq auto-save-default nil)  ;; No # autosave temp files
+(cua-mode 1)                   ;; Ctrl+C, Ctrl+V, Ctrl+X, Ctrl+Z
+(global-visual-line-mode 1)    ;; Wrap lines at word boundaries (Emacs 29)
+(setq make-backup-files nil)   ;; No ~ backup files
+(setq auto-save-default nil)   ;; No # autosave temp files
 
-;; Enter auto-indents to the correct level
+;; Enter auto-indents to correct level
 (global-set-key (kbd "RET") 'newline-and-indent)
 
-;; Tab autocompletes from all open buffers using dabbrev
+;; Tab autocompletes from open buffers
 (global-set-key (kbd "TAB") 'dabbrev-expand)
 
 
 ;; ============================================================
-;; 6. KEYBINDINGS
+;; 7. KEYBINDINGS
 ;; ============================================================
 
-;; Save current file
+;; File
 (global-set-key (kbd "C-s") 'save-buffer)
 
-;; Search — C-f starts search, keep pressing C-f to go to next match
+;; Search — C-f to start, keep pressing to go to next match
 (global-set-key (kbd "C-f")   'isearch-forward)
 (global-set-key (kbd "C-S-f") 'isearch-backward)
 (define-key isearch-mode-map (kbd "C-f")   'isearch-repeat-forward)
 (define-key isearch-mode-map (kbd "C-S-f") 'isearch-repeat-backward)
 
-;; Switch between left and right panel
+;; Panel switching
 (global-set-key (kbd "C-,") 'other-window)
 
-;; Jump to next/previous error in compilation buffer
+;; Error navigation
 (global-set-key (kbd "<f4>")   'next-error)
 (global-set-key (kbd "S-<f4>") 'previous-error)
 
-;; Jump to function/type definition in other window (requires TAGS file)
-;; TAGS file is auto-generated on every C/C++ save — see section 8
+;; Tag/definition jumping — opens in other window
 (global-set-key (kbd "M-.")
                 (lambda () (interactive)
                   (find-tag-other-window (find-tag-default))))
-
-;; Jump back to where you were before the tag jump
 (global-set-key (kbd "M-,") 'pop-tag-mark)
 
-;; Duplicate the current line below
+;; Duplicate current line
 (global-set-key (kbd "C-S-d")
                 (lambda () (interactive)
                   (let ((line (buffer-substring (line-beginning-position)
@@ -170,11 +179,10 @@
 
 
 ;; ============================================================
-;; 7. AUTO SAVE
+;; 8. AUTO SAVE
 ;; ============================================================
 
-;; Save all modified file buffers directly to disk
-;; Triggers every 30 seconds of idle time or every 200 keystrokes
+;; Save all modified buffers every 30 seconds or 200 keystrokes
 (defun full-auto-save ()
   (interactive)
   (save-excursion
@@ -184,28 +192,28 @@
         (basic-save-buffer)))))
 
 (add-hook 'auto-save-hook 'full-auto-save)
-(setq auto-save-timeout 30)  ;; seconds of idle before auto save
-(setq auto-save-interval 200) ;; keystrokes before auto save
+(setq auto-save-timeout 30)
+(setq auto-save-interval 200)
 
 
 ;; ============================================================
-;; 8. AUTO FORMAT & TAGS
+;; 9. AUTO FORMAT & TAGS
 ;; ============================================================
 
-;; Indent the entire current buffer
+;; Indent entire buffer
 (defun indent-buffer ()
   (interactive)
   (indent-region (point-min) (point-max)))
 
-;; Only auto-format C/C++ files on save — skips bat, el, and other files
+;; Auto-format only C/C++ files on save
 (defun indent-buffer-if-code ()
   (when (member major-mode '(c-mode c++-mode))
     (indent-buffer)))
 
 (add-hook 'before-save-hook 'indent-buffer-if-code)
 
-;; Regenerate TAGS file after every C/C++ save
-;; Keeps M-. tag jumps and syntax highlighting consistent
+;; Regenerate TAGS after every C/C++ save
+;; Keeps M-. jumps and highlighting consistent
 (defun update-tags-after-save ()
   (when (member major-mode '(c-mode c++-mode))
     (let ((root (get-project-root)))
@@ -217,13 +225,13 @@
 
 
 ;; ============================================================
-;; 9. CUSTOM HIGHLIGHTS
+;; 10. CUSTOM HIGHLIGHTS
 ;; ============================================================
 
-;; Highlight special comment markers in C/C++ files:
-;;   TODO:      red   — something that needs to be done
-;;   NOTE:      green — informational comment worth noticing
-;;   IMPORTANT: pink  — critical, don't ignore this
+;; Special comment markers:
+;;   TODO:      red   — needs to be done
+;;   NOTE:      green — informational
+;;   IMPORTANT: pink  — critical
 (defun setup-custom-highlights ()
   (font-lock-add-keywords nil
                           '(("\\<\\(TODO\\):"      1 '(:foreground "#FF4444" :weight bold) t)
@@ -234,15 +242,28 @@
 
 
 ;; ============================================================
-;; 10. BUILD SYSTEM
+;; 11. LSP / CLANGD
 ;; ============================================================
 
-;; Cache the project root so it never changes when switching files
-;; To reset manually: M-x eval-expression RET (setq my-project-root nil) RET
+;; LSP keybindings — replaces etags jumps with proper clangd definitions
+(with-eval-after-load 'lsp-mode
+  (define-key lsp-mode-map (kbd "M-.") 'lsp-find-definition)
+  (define-key lsp-mode-map (kbd "M-,") 'xref-pop-marker-stack))
+
+;; Enable LSP for all C/C++ buffers
+(add-hook 'c++-mode-hook #'lsp-deferred)
+(add-hook 'c-mode-hook   #'lsp-deferred)
+
+
+;; ============================================================
+;; 12. BUILD SYSTEM
+;; ============================================================
+
+;; Cache project root — never changes when switching files
+;; Reset: M-x eval-expression RET (setq my-project-root nil) RET
 (setq my-project-root nil)
 
-;; Walk up the directory tree until we find the folder containing misc/build.bat
-;; Works correctly regardless of which source file is currently open
+;; Walk up directory tree to find folder containing misc/build.bat
 (defun get-project-root ()
   (unless my-project-root
     (let ((dir default-directory))
@@ -253,44 +274,17 @@
       (setq my-project-root dir)))
   my-project-root)
 
-;; F1 — Build the project
+;; F1 — Build
 (global-set-key (kbd "<f1>") (lambda () (interactive)
                                (let ((default-directory (get-project-root)))
                                  (compile "misc\\build.bat"))))
 
-;; F2 — Launch debugger (RAD Debugger)
+;; F2 — Debug (RAD Debugger)
 (global-set-key (kbd "<f2>") (lambda () (interactive)
                                (let ((default-directory (get-project-root)))
                                  (compile "misc\\debug.bat"))))
 
-;; F3 — Run the game
+;; F3 — Run
 (global-set-key (kbd "<f3>") (lambda () (interactive)
                                (let ((default-directory (get-project-root)))
                                  (compile "misc\\run.bat"))))
-
-
-;; ============================================================
-;; UPGRADE BLOCK
-;; Uncomment everything below after upgrading to Emacs 29
-;; Requires clangd installed and on PATH
-;; ============================================================
-
-;; --- Package Manager Setup ---
-;; (require 'package)
-;; (setq package-user-dir (expand-file-name ".emacs_pkgs" default-directory))
-;; (add-to-list 'package-archives '("melpa" . "https://melpa.org/packages/") t)
-;; (package-initialize)
-
-;; --- Install LSP Mode if not present ---
-;; (unless (package-installed-p 'lsp-mode)
-;;   (package-refresh-contents)
-;;   (package-install 'lsp-mode))
-
-;; --- LSP Keybindings ---
-;; (with-eval-after-load 'lsp-mode
-;;   (define-key lsp-mode-map (kbd "M-.") 'lsp-find-definition)   ;; Jump to definition
-;;   (define-key lsp-mode-map (kbd "M-,") 'xref-pop-marker-stack));; Jump back
-
-;; --- Enable LSP for C/C++ buffers ---
-;; (add-hook 'c++-mode-hook #'lsp-deferred)
-;; (add-hook 'c-mode-hook   #'lsp-deferred)

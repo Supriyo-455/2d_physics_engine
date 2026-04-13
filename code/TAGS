@@ -5,22 +5,21 @@ all_tests.cpp,100
 #define ASSERT_NEAR(19,365
 int main(34,861
 
-game.cpp,429
-SDL_Color ConvertToSDLColor(12,342
-void RenderTextFromCenter(26,701
-void RenderFilledRect(93,2928
-void RenderHollowRect(101,3242
-RenderHollowCircle(110,3562
-bool32 IsVisible(147,4540
-RenderFilledCircle(171,5639
-RenderPhysicsBody(213,6902
-void GenerateRandomColor(270,9273
-InitializeGame(282,9550
-CloseGame(349,11781
-HandleInput(358,11898
-ClearRenderer(437,14390
-main(445,14617
-#define PHYSICS_BODY_COUNT 492,15627
+game.cpp,358
+SDL_Color ConvertToSDLColor(15,389
+void RenderTextFromCenter(30,791
+RenderHollowCircle(98,3023
+IsVisible(136,4009
+RenderFilledCircle(160,4957
+RenderPhysicsBody(202,6220
+GenerateRandomColor(270,8886
+InitializeGame(282,9158
+CloseGame(349,11402
+PanCamera(358,11520
+ZoomCamera(368,11840
+HandleInput(386,12434
+ClearRenderer(452,14177
+main(460,14404
 
 simple_math_tests.cpp,131
 int test_scalars(2,1
@@ -67,38 +66,89 @@ __LogMessage(55,1180
 #define LOG_WARNING(72,1755
 #define LOG_INFO(75,1860
 
-game.h,206
+game.h,765
 #define GAME_H2,15
 #define SCREEN_WIDTH 8,101
 #define SCREEN_HEIGHT 9,126
 #define PADDING_20 11,153
-}texture;texture20,301
-}mouse;mouse32,510
-}simple_camera;simple_camera43,635
-}game;game59,871
+texture14,183
+    SDL_Texture* SdlTexture;17,230
+    uint32 Width;19,264
+    uint32 Height;20,282
+mouse25,356
+    int XPos;27,364
+    int YPos;28,378
+    real32 ScrollWheel;30,397
+    bool32 ButtonState[ButtonState33,474
+    real32 Pan;38,522
+    real32 Zoom;39,538
+    real32 Width;41,560
+    real32 Height;42,578
+    vec2 Position;44,602
+}simple_camera;simple_camera45,621
+    SDL_Window* Window;49,655
+    SDL_Renderer* Renderer;50,679
+    TTF_Font* Font;51,707
+    SDL_Event Event;52,727
+    simple_camera Camera;54,753
+    real32 dx;56,784
+    real32 dy;57,799
+    real32 Speed;58,814
+    bool32 Running;60,837
+}game;game61,857
 
-physics2D.h,557
+physics2D.h,1588
 #define PHYSICS2_D_H4,59
-const real32 MinBodySize 9,135
-const real32 MaxBodySize 10,177
-const real32 MinDensity 13,252
-const real32 MaxDensity 14,284
-    CIRCLE 18,333
-    BOX 19,349
-}shape;shape20,361
-}physics_body2D;physics_body2D51,953
-IsPhysicsBodyValid(54,978
-CreateCirclePhysicsBody2D(92,2012
-CreateBoxPhysicsBody2D(120,2751
-MovePhysicsBody(169,4146
-RotatePhysicsBody(176,4303
-GetPhysicsBodyTransformedVertices(183,4460
-IntersectPolygons(198,4889
-IntersectCircles(205,5024
-CheckCollision2D(227,5495
-Update2DPhysicsBodies(250,6084
+#define PHYSICS_BODY_COUNT 8,107
+shape11,143
+    CIRCLE 13,151
+    BOX 14,167
+physics_body2D18,190
+    vec2 LinearVelocity;20,207
+    vec2 Position;21,232
+    real32 Rotation;23,256
+    real32 RotationalVelocity;24,277
+    real32 Mass;26,313
+    real32 Density;27,330
+    real32 Restitution;28,350
+    real32 Area;29,374
+    bool32 IsStatic;31,396
+    bool32 IsCollided;32,417
+    shape Shape;34,445
+    real32 Radius;37,525
+    real32 Width;38,544
+    real32 Height;39,562
+    vec2 Vertices[Vertices42,632
+    vec2 TransformedVertices[TransformedVertices43,654
+    bool32 TransformUpdateRequired;44,687
+    int Triangles[Triangles47,774
+physics_world2D51,807
+    physics_body2D* Bodies;53,825
+    int BodyCount;54,853
+    inline local_persist const vec2 Gravity 57,917
+    inline local_persist const real32 MinBodySize 60,1019
+    inline local_persist const real32 MaxBodySize 61,1086
+    inline local_persist const real32 MinDensity 64,1194
+    inline local_persist const real32 MaxDensity 65,1251
+IsPhysicsBodyValid(69,1320
+CreateCirclePhysicsBody2D(107,2475
+CreateBoxPhysicsBody2D(131,3173
+MovePhysicsBody(178,4561
+RotatePhysicsBody(185,4718
+GetPhysicsBodyTransformedVertices(192,4875
+CheckCollisionBounds(207,5297
+CalculateAxisDepth(218,5473
+ProjectVertices(229,5754
+ProjectCircle(248,6122
+FindClosestPointOnPolygon(266,6506
+IntersectCircles(288,6948
+IntersectPolygons(310,7430
+IntersectCircleAndPolygon(371,9377
+CheckCollision2D(432,11381
+Transform2DPhysicsBody(468,12442
+Collide2DPhysicsBodies(484,12811
 
-simple_math.h,1946
+simple_math.h,2498
 #define SIMPLE_MATH_H2,22
 #define PI 6,67
 inline real32 absf(8,92
@@ -109,10 +159,26 @@ inline real32 Cos(51,791
 Clamp(71,1139
 Clamp(92,1514
 typedef union vec2112,1900
+    real32 E[E114,1921
+        real32 x,117,1955
+        real32 x, y;117,1955
 } vec2;119,1983
 typedef union vec3122,2040
+    real32 E[E124,2061
+        real32 x,127,2095
+        real32 x, y,127,2095
+        real32 x, y, z;127,2095
 } vec3;129,2126
 typedef union vec4132,2183
+    real32 E[E134,2204
+        real32 x,137,2238
+        real32 x, y,137,2238
+        real32 x, y, z,137,2238
+        real32 x, y, z, w;137,2238
+        real32 r,142,2333
+        real32 r, g,142,2333
+        real32 r, g, b,142,2333
+        real32 r, g, b, a;142,2333
 } vec4;144,2367
 inline vec2 vec(146,2376
 inline vec3 vec(154,2474
@@ -122,46 +188,52 @@ inline real32 Dot(183,2867
 inline real32 Magnitude(193,3030
 inline vec2 Normalize(198,3096
 inline real32 Distance(206,3208
-inline real32 Angle(213,3373
-inline vec2 Transform(221,3545
-inline vec2 operator*operator264,4373
-inline vec2 operator*operator272,4502
-inline vec2 &operator*operator280,4631
-inline vec3 operator*operator313,5156
-inline vec3 Cross(332,5478
-inline real32 Inner(343,5677
-inline vec3 Hadamard(349,5792
-inline real32 LengthSq(360,5958
-inline real32 Length(366,6046
-inline vec3 Normalize(372,6147
-inline vec3 NormalizeOrZero(378,6243
-inline vec3 Lerp(390,6439
-inline vec4 operator*operator395,6523
-inline real32 Inner(420,6912
-inline real32 LengthSq(426,7039
-inline real32 Length(432,7127
-inline vec4 Normalize(438,7220
-typedef struct mat4x4444,7316
-} mat4x4;447,7360
-inline mat4x4 Identity(449,7371
-inline mat4x4 ScalingMat4x4(460,7506
-inline mat4x4 transMat4x4(471,7666
-inline mat4x4 operator*operator480,7801
-inline mat4x4 operator*operator493,8022
-inline vec4 operator*operator509,8324
-inline mat4x4 rotateZ(535,8772
-inline mat4x4 rotateX(549,9060
-inline mat4x4 transpose(563,9348
-inline mat4x4 projection(576,9550
-inline uint32 RGBAPack4x8(591,9858
-inline uint32 BGRAPack4x8(601,10178
-inline vec4 RGBAUnpack4x8(611,10498
-inline real32 LinearTosRGB(621,10775
-bool32 GetRealRandomNumber(641,11235
-void InitializeRandomNumbers(654,11450
-inline real32 RandomUnilateral(661,11556
-inline real32 RandomBilateral(666,11633
+inline real32 Angle(213,3365
+inline vec2 Transform(221,3537
+inline vec2 operator*operator264,4365
+inline vec2 operator*operator272,4494
+inline vec2 &operator*operator280,4623
+inline vec3 operator*operator313,5148
+inline vec3 Cross(332,5470
+inline real32 Inner(343,5669
+inline vec3 Hadamard(349,5784
+inline real32 LengthSq(360,5950
+inline real32 Length(366,6038
+inline vec3 Normalize(372,6139
+inline vec3 NormalizeOrZero(378,6235
+inline vec3 Lerp(390,6431
+inline vec4 operator*operator395,6515
+inline real32 Inner(420,6904
+inline real32 LengthSq(426,7031
+inline real32 Length(432,7119
+inline vec4 Normalize(438,7212
+typedef struct mat4x4444,7308
+    real32 E[E446,7332
+} mat4x4;447,7352
+inline mat4x4 Identity(449,7363
+inline mat4x4 ScalingMat4x4(460,7498
+inline mat4x4 transMat4x4(471,7658
+inline mat4x4 operator*operator480,7793
+inline mat4x4 operator*operator493,8014
+inline vec4 operator*operator509,8316
+inline mat4x4 operator+(mat4x4 A, mat4x4 B)522,8534
+inline mat4x4 rotateZ(535,8764
+inline mat4x4 rotateX(549,9052
+inline mat4x4 transpose(563,9340
+inline mat4x4 projection(576,9542
+inline uint32 RGBAPack4x8(591,9850
+inline uint32 BGRAPack4x8(601,10170
+inline vec4 RGBAUnpack4x8(611,10490
+inline real32 LinearTosRGB(621,10767
+bool32 GetRealRandomNumber(641,11227
+void InitializeRandomNumbers(654,11442
+inline real32 RandomUnilateral(661,11548
+inline real32 RandomBilateral(666,11625
 
-timer.h,42
+timer.h,156
 #define TIMER_H4,54
+    uint32 StartTicks;10,110
+    uint32 PausedTicks;11,133
+    bool32 Paused;13,162
+    bool32 Started;14,181
 }timer;timer15,201

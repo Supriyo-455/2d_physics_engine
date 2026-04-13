@@ -59,10 +59,10 @@ window:
         input: ""
         cmd: search
       }
-      cursor_line: 261
-      cursor_column: 13
-      mark_line: 261
-      mark_column: 13
+      cursor_line: 562
+      cursor_column: 14
+      mark_line: 562
+      mark_column: 14
     }
   }
   split_x

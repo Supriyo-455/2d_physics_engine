@@ -10,17 +10,19 @@
 
 #define PADDING_20 20
 
-typedef struct
+struct
+texture
 {
     // NOTE: Actual hardware texture
     SDL_Texture* SdlTexture;
     
     uint32 Width;
     uint32 Height;
-}texture;
+};
 
 // TODO: SDL Indepent user input and output
-typedef struct
+struct
+mouse
 {
     int XPos;
     int YPos;
@@ -29,7 +31,7 @@ typedef struct
     
     // NOTE: For now we support 3 mouse buttons
     bool32 ButtonState[3];
-}mouse;
+};
 
 typedef struct
 {

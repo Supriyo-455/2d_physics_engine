@@ -207,7 +207,7 @@ inline real32 Distance(vec2 A, vec2 B)
 {
     real32 Result;
     Result = (A.x - B.x) * (A.x - B.x) + (A.y - B.y) * (A.y - B.y);
-    return (real32) sqrt(Result);
+    return sqrtf(Result);
 }
 
 inline real32 Angle(vec2 A, vec2 B)

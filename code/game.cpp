@@ -3,7 +3,10 @@
 /* TODO:
    1) Camera - (Simple camera done, Need more advanced camera with actual frustum culling)
    2) Sound - (No sound features yet)
-3) Opengl - (As soon as the basic 2d physics engine completed, need to work on opengl rendering)
+   3) Opengl - (As soon as the basic 2d physics engine completed, need to work on opengl 
+   rendering)
+   4) Dynamic arrays
+   5) Memory Arena
 */
 
 // NOTE: Including the cpp files for the function definitions
@@ -23,6 +26,7 @@ SDL_Color ConvertToSDLColor(vec4 Color)
 
 // TODO: Need to replace this cpu based calls with Opengl
 // TODO: Generalize texture
+// TODO: Texture Scalling is not optimized
 void RenderTextFromCenter(int XPos,
                           int YPos,
                           const char* TextureText,
@@ -129,7 +133,9 @@ RenderHollowCircle(SDL_Renderer* Renderer, int32 CX, int32 CY, int32 Radius, vec
 }
 
 bool32 
-IsVisible(real32 ObjectX, real32 ObjectY, real32 ObjectWidth, real32 ObjectHeight, simple_camera* Camera) {
+IsVisible(real32 ObjectX, real32 ObjectY,
+          real32 ObjectWidth, real32 ObjectHeight,
+          simple_camera* Camera) {
     
     real32 ObjectLeft = ObjectX - (ObjectWidth / 2.0f); 
     real32 ObjectRight = ObjectLeft + ObjectWidth;
@@ -239,11 +245,13 @@ RenderPhysicsBody(simple_camera* Camera, SDL_Renderer* Renderer, physics_body2D*
             
             SDL_RenderGeometry(Renderer, NULL, SdlVerts, 4, Body->Triangles, 6);
             
-            SDL_Color Border = ConvertToSDLColor(BorderColor);
-            if(Body->IsCollided)
-                Border = {255, 0, 0, 255};
             
+            if(Body->IsCollided)
+                BorderColor = vec(1.0f, 0.0f, 0.0f, 1.0f);
+            
+            SDL_Color Border = ConvertToSDLColor(BorderColor);
             SDL_SetRenderDrawColor(Renderer, Border.r, Border.g, Border.b, Border.a);
+            
             for(int i = 0; i < 4; i++)
             {
                 int Next = (i + 1) % 4;
@@ -254,7 +262,7 @@ RenderPhysicsBody(simple_camera* Camera, SDL_Renderer* Renderer, physics_body2D*
         }
         break;
         default:
-        break;
+	    break;
     }
 }
 
@@ -282,7 +290,7 @@ InitializeGame(game* Game)
     }
     else
     {
-        Game->Window = SDL_CreateWindow("Pong",
+        Game->Window = SDL_CreateWindow("2D Physics Engine",
                                         SDL_WINDOWPOS_UNDEFINED,
                                         SDL_WINDOWPOS_UNDEFINED,
                                         SCREEN_WIDTH,
@@ -346,6 +354,34 @@ CloseGame(game* Game)
     SDL_Quit();
 }
 
+void 
+PanCamera(simple_camera* Camera, real32 NewX, real32 NewY)
+{
+    real32 NewCamPositionX = Camera->Position.x - (NewX / Camera->Zoom);
+    real32 NewCamPositionY = Camera->Position.y - (NewY / Camera->Zoom);
+    
+    Camera->Position = vec(NewCamPositionX, NewCamPositionY);
+}
+
+// TODO: Need to set bounds for zoom
+void 
+ZoomCamera(simple_camera* Camera, real32 ZoomXPos, real32 ZoomYPos, int32 ZoomWeight)
+{
+    real32 OffsetX = ZoomXPos - (Camera->Width / 2.0f);
+    real32 OffsetY = ZoomYPos - (Camera->Height / 2.0f);
+    
+    real32 WorldXBefore = Camera->Position.x + (OffsetX / Camera->Zoom);
+    real32 WorldYBefore = Camera->Position.y + (OffsetY / Camera->Zoom);
+    
+    if(ZoomWeight > 0)
+        Camera->Zoom *= 1.1f;
+    else
+        Camera->Zoom /= 1.1f;
+    
+    Camera->Position.x = WorldXBefore - (OffsetX / Camera->Zoom);
+    Camera->Position.y = WorldYBefore - (OffsetY / Camera->Zoom);
+}
+
 void
 HandleInput(game* Game)
 {
@@ -359,10 +395,9 @@ HandleInput(game* Game)
         if(Game->Event.type == SDL_MOUSEMOTION && 
            (Game->Event.motion.state & SDL_BUTTON_RMASK))
         {
-            real32 NewCamPositionX = Game->Camera.Position.x - (Game->Event.motion.xrel / Game->Camera.Zoom);
-            real32 NewCamPositionY = Game->Camera.Position.y - (Game->Event.motion.yrel / Game->Camera.Zoom);
-            
-            Game->Camera.Position = vec(NewCamPositionX, NewCamPositionY);
+            PanCamera(&Game->Camera, 
+                      (real32)Game->Event.motion.xrel, 
+                      (real32)Game->Event.motion.yrel);
         }
         
         if(Game->Event.type == SDL_MOUSEWHEEL)
@@ -370,19 +405,7 @@ HandleInput(game* Game)
             int MouseX, MouseY;
             SDL_GetMouseState(&MouseX, &MouseY);
             
-            real32 OffsetX = (real32)MouseX - (Game->Camera.Width / 2.0f);
-            real32 OffsetY = (real32)MouseY - (Game->Camera.Height / 2.0f);
-            
-            real32 WorldXBefore = Game->Camera.Position.x + (OffsetX / Game->Camera.Zoom);
-            real32 WorldYBefore = Game->Camera.Position.y + (OffsetY / Game->Camera.Zoom);
-            
-            if(Game->Event.wheel.y > 0)
-                Game->Camera.Zoom *= 1.1f;
-            else
-                Game->Camera.Zoom /= 1.1f;
-            
-            Game->Camera.Position.x = WorldXBefore - (OffsetX / Game->Camera.Zoom);
-            Game->Camera.Position.y = WorldYBefore - (OffsetY / Game->Camera.Zoom);
+            ZoomCamera(&Game->Camera, (real32)MouseX, (real32)MouseY, Game->Event.wheel.y);
         }
         
         if(Game->Event.type == SDL_KEYDOWN)
@@ -481,27 +504,31 @@ main(int argc, char* args[])
             .a=0.0f
         };
         
-#define PHYSICS_BODY_COUNT 20
-        vec4 Colors1[PHYSICS_BODY_COUNT] = {0};
-        GenerateRandomColor(Colors1, PHYSICS_BODY_COUNT);
+        physics_world2D World = {0};
+        World.BodyCount = PHYSICS_BODY_COUNT;
         
-        vec4 Colors2[PHYSICS_BODY_COUNT] = {0};
-        GenerateRandomColor(Colors2, PHYSICS_BODY_COUNT);
+        vec4 Colors[PHYSICS_BODY_COUNT] = {0};
+        GenerateRandomColor(Colors, PHYSICS_BODY_COUNT);
         
-        physics_body2D Circles[PHYSICS_BODY_COUNT] = {0};
-        physics_body2D Boxes[PHYSICS_BODY_COUNT] = {0};
-        for(int i=0; i<PHYSICS_BODY_COUNT; i++)
+        physics_body2D Bodies[PHYSICS_BODY_COUNT] = {0};
+        for(int i=0; 
+            i<PHYSICS_BODY_COUNT - 1; 
+            i+=2)
         {
+            int CircleIndex = i;
+            int BoxIndex = i + 1;
+            
             real32 X = RandomUnilateral() * SCREEN_WIDTH;
             real32 Y = RandomUnilateral() * SCREEN_HEIGHT;
             
-            real32 Radius = 20.0f;
+            real32 Radius = 10.0f;
             
-            Circles[i] = CreateCirclePhysicsBody2D(vec(X, Y),
-                                                   Radius,
-                                                   0.60f,
-                                                   0.0f,
-                                                   false);
+            Bodies[CircleIndex] = CreateCirclePhysicsBody2D(&World,
+                                                            vec(X, Y),
+                                                            Radius,
+                                                            11.90f,
+                                                            0.0f,
+                                                            false);
             
             X = RandomUnilateral() * SCREEN_WIDTH;
             Y = RandomUnilateral() * SCREEN_HEIGHT;
@@ -509,13 +536,15 @@ main(int argc, char* args[])
             real32 Width = 20.0f;
             real32 Height = 20.0f;
             
-            Boxes[i] = CreateBoxPhysicsBody2D(vec(X, Y),
-                                              Width,
-                                              Height,
-                                              0.60f,
-                                              0.0f,
-                                              false);
+            Bodies[BoxIndex] = CreateBoxPhysicsBody2D(&World,
+                                                      vec(X, Y),
+                                                      Width,
+                                                      Height,
+                                                      0.50f,
+                                                      0.0f,
+                                                      false);
         }
+        World.Bodies = Bodies;
         
         timer FPSTimer = {};
         TimerStart(&FPSTimer);
@@ -524,70 +553,61 @@ main(int argc, char* args[])
         uint32 LastFrameTicks = TimerGetTicks(&FPSTimer);
         uint32 CurrentFrameTicks = TimerGetTicks(&FPSTimer);
         uint32 DeltaTicks = CurrentFrameTicks - LastFrameTicks;
-        
-        real32 TestAngle = 0.01f;
+        real32 DeltaTimeSeconds = DeltaTicks / 1000.0f;
         
         while(Game.Running)
         {
             // TODO: Compress this into the fps timer struct
-            uint32 CurrentFrameTicks = SDL_GetTicks();
+            CurrentFrameTicks = TimerGetTicks(&FPSTimer);
             DeltaTicks = CurrentFrameTicks - LastFrameTicks;
             LastFrameTicks = CurrentFrameTicks;
+            DeltaTimeSeconds = DeltaTicks / 1000.0f;
             
             HandleInput(&Game);
-            
-            real32 DeltaTimeSeconds = DeltaTicks / 1000.0f;
             
             if(Game.dx != 0.0f || Game.dy != 0.0f)
             {            
                 vec2 Direction = Normalize(vec(Game.dx, Game.dy));
                 vec2 Velocity = (Direction * Game.Speed) * DeltaTimeSeconds ;
-                Boxes[0].LinearVelocity = Velocity;
+                World.Bodies[0].LinearVelocity = Velocity;
             }
             else
             {
-                Boxes[0].LinearVelocity = vec(0.0f, 0.0f);
+                World.Bodies[0].LinearVelocity = vec(0.0f, 0.0f);
             }
+            Transform2DPhysicsBody(&World.Bodies[0]);
             
-            for(int i = 0; i < ARRAY_COUNT(Circles); i++)
+            for(int i = 1; i < World.BodyCount; i++)
             {
-                Circles[i].RotationalVelocity = 0.1f;
-                RotatePhysicsBody(&Circles[i]);
-                
-                MovePhysicsBody(&Circles[i]);
+                World.Bodies[i].RotationalVelocity = 0.0f;
+                Transform2DPhysicsBody(&World.Bodies[i]);
             }
             
-            for(int i = 0; i < ARRAY_COUNT(Boxes); i++)
-            {
-                //Boxes[i].RotationalVelocity = 0.1f;
-                
-                //RotatePhysicsBody(&Boxes[i]);
-                MovePhysicsBody(&Boxes[i]);
-                
-                vec2* TransformedVertices = GetPhysicsBodyTransformedVertices(&Boxes[i]);
-                for(int j = 0; j < ARRAY_COUNT(Boxes[i].Vertices); j++)
-                {
-                    Boxes[i].Vertices[j] = TransformedVertices[j];
-                }
-            }
-            
-            Update2DPhysicsBodies(Circles, ARRAY_COUNT(Circles));
-            Update2DPhysicsBodies(Boxes, ARRAY_COUNT(Boxes));
+            Collide2DPhysicsBodies(World.Bodies, World.BodyCount);
             
             ClearRenderer(Game.Renderer, GRAY);
             
-            for(int i=0; i<PHYSICS_BODY_COUNT; i++)
+            // NOTE: Render all the physics bodies
+            for(int i=0; i<World.BodyCount - 1; i++)
             {
-                if(IsVisible(Circles[i].Position.x, Circles[i].Position.y, 2.0f * Circles[i].Radius, 2.0f * Circles[i].Radius, &Game.Camera))
+                real32 Width, Height;
+                if(World.Bodies[i].Shape == CIRCLE)
                 {
-                    RenderPhysicsBody(&Game.Camera, Game.Renderer, &Circles[i], 
-                                      Colors1[i], WHITE);
+                    Width = 2.0f * World.Bodies[i].Radius;
+                    Height = 2.0f * World.Bodies[i].Radius;
+                }
+                else
+                {
+                    Width = World.Bodies[i].Width;
+                    Height = World.Bodies[i].Height;
                 }
                 
-                if(IsVisible(Boxes[i].Position.x, Boxes[i].Position.y, Boxes[i].Width, Boxes[i].Height, &Game.Camera))
+                
+                if(IsVisible(World.Bodies[i].Position.x, World.Bodies[i].Position.y, 
+                             Width, Height, &Game.Camera))
                 {
-                    RenderPhysicsBody(&Game.Camera, Game.Renderer, &Boxes[i], 
-                                      Colors2[i], WHITE);
+                    RenderPhysicsBody(&Game.Camera, Game.Renderer, &World.Bodies[i], 
+                                      Colors[i], WHITE);
                 }
             }
             
