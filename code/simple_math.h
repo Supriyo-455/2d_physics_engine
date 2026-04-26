@@ -218,25 +218,6 @@ inline real32 Angle(vec2 A, vec2 B)
     return acosf(cosValue);
 }
 
-inline vec2 Transform(vec2 A, vec2 R, vec2 Translation, real32 Angle)
-{
-    vec2 Result = {};
-    
-    real32 Cosine = cosf(Angle);
-    real32 Sine = sinf(Angle);
-    
-    real32 RDeltaX = A.x - R.x;
-    real32 RDeltaY = A.y - R.y;
-    
-    real32 Rx = R.x + Cosine * RDeltaX - Sine * RDeltaY;
-    real32 Ry = R.y + Sine * RDeltaX + Cosine * RDeltaY;
-    
-    Result.x = Rx + Translation.x;
-    Result.y = Ry + Translation.y;
-    
-    return Result;
-}
-
 inline vec2 operator-(vec2 A)
 {
     vec2 Result;

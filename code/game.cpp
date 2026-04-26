@@ -231,14 +231,16 @@ RenderPhysicsBody(simple_camera* Camera, SDL_Renderer* Renderer, physics_body2D*
         break;
         case BOX:
         {
+            vec2* WorldVerts = GetPhysicsBodyTransformedVertices(Body);
+            
             SDL_Vertex SdlVerts[4] = {};
             SDL_Color Fill = ConvertToSDLColor(FillColor);
             
             for(int i = 0; i < 4; i++)
             {
-                SdlVerts[i].position.x = (Body->Vertices[i].x - Camera->Position.x) * Camera->Zoom + (Camera->Width / 2.0f);
+                SdlVerts[i].position.x = (WorldVerts[i].x - Camera->Position.x) * Camera->Zoom + (Camera->Width / 2.0f);
                 
-                SdlVerts[i].position.y = (Body->Vertices[i].y - Camera->Position.y) * Camera->Zoom + (Camera->Height / 2.0f);
+                SdlVerts[i].position.y = (WorldVerts[i].y - Camera->Position.y) * Camera->Zoom + (Camera->Height / 2.0f);
                 
                 SdlVerts[i].color = Fill;
             }
@@ -438,6 +440,7 @@ HandleInput(game* Game)
     
     Game->dx = 0.0f;
     Game->dy = 0.0f;
+    Game->RotationalVelocity = 0.0f;
     
     const Uint8* KeyState = SDL_GetKeyboardState(NULL);
     
@@ -446,6 +449,9 @@ HandleInput(game* Game)
     if(KeyState[SDL_SCANCODE_LEFT])  Game->dx += -1.0f;
     if(KeyState[SDL_SCANCODE_UP])    Game->dy += -1.0f;
     if(KeyState[SDL_SCANCODE_DOWN])  Game->dy += 1.0f;
+    
+    if(KeyState[SDL_SCANCODE_R]) 
+        Game->RotationalVelocity = 1.0f;
 }
 
 void
@@ -512,11 +518,11 @@ main(int argc, char* args[])
         
         physics_body2D Bodies[PHYSICS_BODY_COUNT] = {0};
         for(int i=0; 
-            i<PHYSICS_BODY_COUNT - 1; 
+            i<PHYSICS_BODY_COUNT; 
             i+=2)
         {
-            int CircleIndex = i;
-            int BoxIndex = i + 1;
+            int BoxIndex = i;
+            int CircleIndex = i + 1;
             
             real32 X = RandomUnilateral() * SCREEN_WIDTH;
             real32 Y = RandomUnilateral() * SCREEN_HEIGHT;
@@ -526,7 +532,7 @@ main(int argc, char* args[])
             Bodies[CircleIndex] = CreateCirclePhysicsBody2D(&World,
                                                             vec(X, Y),
                                                             Radius,
-                                                            11.90f,
+                                                            1.90f,
                                                             0.0f,
                                                             false);
             
@@ -554,6 +560,7 @@ main(int argc, char* args[])
         uint32 CurrentFrameTicks = TimerGetTicks(&FPSTimer);
         uint32 DeltaTicks = CurrentFrameTicks - LastFrameTicks;
         real32 DeltaTimeSeconds = DeltaTicks / 1000.0f;
+        real32 CurrentFrameTicksSeconds = CurrentFrameTicks / 1000.0f;
         
         while(Game.Running)
         {
@@ -568,27 +575,25 @@ main(int argc, char* args[])
             if(Game.dx != 0.0f || Game.dy != 0.0f)
             {            
                 vec2 Direction = Normalize(vec(Game.dx, Game.dy));
-                vec2 Velocity = (Direction * Game.Speed) * DeltaTimeSeconds ;
+                vec2 Velocity = (Direction * Game.Speed);
                 World.Bodies[0].LinearVelocity = Velocity;
             }
             else
             {
                 World.Bodies[0].LinearVelocity = vec(0.0f, 0.0f);
             }
-            Transform2DPhysicsBody(&World.Bodies[0]);
             
-            for(int i = 1; i < World.BodyCount; i++)
-            {
-                World.Bodies[i].RotationalVelocity = 0.0f;
-                Transform2DPhysicsBody(&World.Bodies[i]);
-            }
+            if(Game.RotationalVelocity != 0.0f)
+                World.Bodies[0].RotationalVelocity = Game.RotationalVelocity;
+            else
+                World.Bodies[0].RotationalVelocity = 0.0f;
             
-            Collide2DPhysicsBodies(World.Bodies, World.BodyCount);
+            UpdatePhysicsWorld2d(&World, DeltaTimeSeconds);
             
             ClearRenderer(Game.Renderer, GRAY);
             
             // NOTE: Render all the physics bodies
-            for(int i=0; i<World.BodyCount - 1; i++)
+            for(int i=0; i<World.BodyCount; i++)
             {
                 real32 Width, Height;
                 if(World.Bodies[i].Shape == CIRCLE)

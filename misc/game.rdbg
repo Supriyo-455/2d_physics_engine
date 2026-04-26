@@ -6,67 +6,88 @@ window:
   size: 1536.000000 825.599976
   panels:
   {
-    0.458464:
+    0.462121:
     {
-      0.843586:
+      0.947862:
       {
         watch:
         {
           expression: ""
-          watch: "ARRAY_COUNT(&Boxes)"
+          watch: World
+          watch: "World.Bodies[1]"
         }
-        watch: expression: "query:types"
+        watch:
+        {
+          expression: "query:types"
+          query:
+          {
+            cmd: search
+            input: phys
+          }
+        }
         watch: selected expression: "query:locals"
+        watch: expression: "query:call_stack"
+        text:
+        {
+          expression: "query:output"
+          query: input: ""
+          cursor_line: 1
+          cursor_column: 1
+          mark_line: 1
+          mark_column: 1
+        }
       }
       0.052138:
       {
-        watch:
-        {
-          expression: "query:threads"
-          selected
-        }
+        watch: expression: "query:threads"
         watch: expression: "query:targets"
         watch: expression: "query:breakpoints"
         watch: expression: "query:watch_pins"
-      }
-      0.052138:
-      {
+        watch: expression: "query:modules"
         disasm:
         {
           selected
           expression: ""
           query: input: ""
         }
-        text: expression: "query:output"
-      }
-      0.052138:
-      {
-        watch:
-        {
-          expression: "query:call_stack"
-          selected
-        }
-        watch: expression: "query:modules"
       }
     }
-    0.541536: selected getting_started text:
+    0.537879:
     {
       selected
-      expression: "file:\"D:/projects/physics_engine/code/game.cpp\".data"
-      auto: 1
-      query:
+      text:
       {
-        input: ""
-        cmd: search
+        selected
+        expression: "file:\"D:/projects/physics_engine/code/physics2D.h\".data"
+        auto: 1
+        query:
+        {
+          input: ""
+          cmd: search
+        }
+        cursor_line: 498
+        cursor_column: 1
+        mark_line: 498
+        mark_column: 1
       }
-      cursor_line: 562
-      cursor_column: 14
-      mark_line: 562
-      mark_column: 14
+      text:
+      {
+        expression: "file:\"D:/projects/physics_engine/code/game.cpp\".data"
+        project: "C:\\Users\\pauls\\AppData\\Roaming/raddbg/default.raddbg_project"
+        query:
+        {
+          input: ""
+          cmd: search
+        }
+        cursor_line: 580
+        cursor_column: 1
+        mark_line: 580
+        mark_column: 1
+      }
     }
   }
   split_x
-  pos: 192 103
+  pos: -1728 103
   monitor: "\\\\.\\DISPLAY1"
   maximized
 }
@@ -190,3 +211,4 @@ keybindings:
   { toggle_dev_menu d ctrl shift alt }
 }
 current_path: "D:/projects/physics_engine/code"
+file_path_map

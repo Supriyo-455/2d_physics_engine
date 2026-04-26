@@ -15,6 +15,15 @@ shape
 };
 
 struct
+transform2D
+{
+    real32 PosX;
+    real32 PosY;
+    real32 Sin;
+    real32 Cos;
+};
+
+struct
 physics_body2D
 {
     vec2 LinearVelocity;
@@ -64,6 +73,43 @@ physics_world2D
     inline local_persist const real32 MinDensity = 0.5f;
     inline local_persist const real32 MaxDensity = 21.4f;
 };
+
+transform2D
+CreateTransform2D(vec2 Pos, real32 Angle)
+{
+    transform2D Result = {};
+    
+    Result.Cos = cosf(Angle);
+    Result.Sin = sinf(Angle);
+    Result.PosX = Pos.x;
+    Result.PosY = Pos.y;
+    
+    return Result;
+}
+
+transform2D
+CreateTransform2D(real32 PosX, real32 PosY, real32 Angle)
+{
+    transform2D Result = {};
+    
+    Result.Cos = cosf(Angle);
+    Result.Sin = sinf(Angle);
+    Result.PosX = PosX;
+    Result.PosY = PosY;
+    
+    return Result;
+}
+
+vec2
+Transform(vec2 V, transform2D Transform)
+{
+    vec2 Result = {};
+    
+    Result.x = Transform.Cos * V.x - Transform.Sin * V.y + Transform.PosX;
+    Result.y = Transform.Sin * V.x + Transform.Cos * V.y + Transform.PosY;
+    
+    return Result;
+}
 
 bool32
 IsPhysicsBodyValid(physics_world2D* World, physics_body2D* Body)
@@ -149,15 +195,14 @@ CreateBoxPhysicsBody2D(physics_world2D* World, vec2 Position, real32 Width, real
     
     Body.IsCollided = false;
     
-    real32 Left = Body.Position.x - Width / 2.0f;
-    real32 Rigth = Left + Width;
-    real32 Top = Body.Position.y - Height / 2.0f;
-    real32 Bottom = Top + Height;
+    real32 HalfWidth = Width / 2.0f;
+    real32 HalfHeight = Height / 2.0f;
     
-    Body.Vertices[0] = vec(Left, Top);
-    Body.Vertices[1] = vec(Left, Bottom);
-    Body.Vertices[2] = vec(Rigth, Bottom);
-    Body.Vertices[3] = vec(Rigth, Top);
+    // NOTE: Relative to (0,0)
+    Body.Vertices[0] = vec(-HalfWidth, -HalfHeight); // Top-Left
+    Body.Vertices[1] = vec(-HalfWidth,  HalfHeight); // Bottom-Left
+    Body.Vertices[2] = vec( HalfWidth,  HalfHeight); // Bottom-Right
+    Body.Vertices[3] = vec( HalfWidth, -HalfHeight); // Top-Right
     
     memset(Body.TransformedVertices, 0, ARRAY_COUNT(Body.TransformedVertices));
     Body.TransformUpdateRequired = true;
@@ -174,17 +219,39 @@ CreateBoxPhysicsBody2D(physics_world2D* World, vec2 Position, real32 Width, real
     return Body;
 }
 
-inline void
-MovePhysicsBody(physics_body2D* Body)
+vec2 FindPolygonCenter(vec2* Vertices, int VerticesCount)
 {
-    Body->Position = Body->Position + Body->LinearVelocity;
+    real32 SumX = 0.0f;
+    real32 SumY = 0.0f;
+    
+    for(int i=0; i<VerticesCount; i++)
+    {
+        vec2 V = Vertices[i];
+        SumX += V.x;
+        SumY += V.y;
+    }
+    
+    return vec(SumX / (real32)VerticesCount, SumY / (real32)VerticesCount);
+}
+
+inline void
+TranslatePhysicsBody(physics_body2D* Body, real32 ElapsedTime)
+{
+    Body->Position = Body->Position + Body->LinearVelocity * ElapsedTime;
     Body->TransformUpdateRequired = true;
 }
 
 inline void
-RotatePhysicsBody(physics_body2D* Body)
+MovePhysicsBody(physics_body2D* Body, real32 ElapsedTime)
 {
-    Body->Rotation = Body->Rotation + Body->RotationalVelocity;
+    Body->Position = Body->Position + Body->LinearVelocity * ElapsedTime;
+    Body->TransformUpdateRequired = true;
+}
+
+inline void
+RotatePhysicsBody(physics_body2D* Body, real32 ElapsedTime)
+{
+    Body->Rotation = Body->Rotation + Body->RotationalVelocity * ElapsedTime;
     Body->TransformUpdateRequired = true;
 }
 
@@ -193,36 +260,16 @@ GetPhysicsBodyTransformedVertices(physics_body2D* Body)
 {
     if(Body->TransformUpdateRequired)
     {
+        transform2D SavedTransform = CreateTransform2D(Body->Position, Body->Rotation);
+        
         for(int i=0; i<ARRAY_COUNT(Body->Vertices); i++)
         {
-            Body->TransformedVertices[i] = Transform(Body->Vertices[i], Body->Position, Body->LinearVelocity, Body->RotationalVelocity);
+            Body->TransformedVertices[i] = Transform(Body->Vertices[i], SavedTransform);
         }
         Body->TransformUpdateRequired = false;
     }
     
     return Body->TransformedVertices;
-}
-
-bool32
-CheckCollisionBounds(real32 MinA, real32 MaxA, real32 MinB, real32 MaxB)
-{
-    if(MinA >= MaxB || MinB >= MaxA)
-    {
-        return false;
-    }
-    
-    return true;
-}
-
-void
-CalculateAxisDepth(real32 MinA, real32 MaxA, real32 MinB, real32 MaxB, vec2 Axis, vec2* OutNormal, real32* OutDepth)
-{
-    real32 AxisDepth = MIN(MaxB - MinA, MaxA - MinB);
-    if(AxisDepth < *OutDepth)
-    {
-        *OutDepth = AxisDepth;
-        *OutNormal = Axis;
-    }
 }
 
 void
@@ -250,8 +297,8 @@ ProjectCircle(vec2 Center, real32 Radius, vec2 Axis, real32* Min, real32* Max)
     vec2 Direction = Axis;
     vec2 DirectionAndRadius = Direction * Radius;
     
-    vec2 P1 = Center - DirectionAndRadius;
-    vec2 P2 = Center + DirectionAndRadius;
+    vec2 P1 = Center + DirectionAndRadius;
+    vec2 P2 = Center - DirectionAndRadius;
     
     *Min = Dot(P1, Axis);
     *Max = Dot(P2, Axis);
@@ -313,55 +360,79 @@ IntersectPolygons(physics_body2D* BodyA, physics_body2D* BodyB,
     *OutNormal = vec(0.0f, 0.0f);
     *OutDepth = FLT_MAX;
     
+    vec2* VertsA = GetPhysicsBodyTransformedVertices(BodyA);
+    vec2* VertsB = GetPhysicsBodyTransformedVertices(BodyB);
     
-    for(int i=0; i<ARRAY_COUNT(BodyA->Vertices); i++)
+    int VertsCountA = ARRAY_COUNT(BodyA->Vertices);
+    int VertsCountB = ARRAY_COUNT(BodyB->Vertices);
+    
+    for(int i=0; i<VertsCountA; i++)
     {
-        int Next = (i + 1) % ARRAY_COUNT(BodyA->Vertices);
-        vec2 Va = BodyA->Vertices[i];
-        vec2 Vb = BodyA->Vertices[Next];
+        int Next = (i + 1) % VertsCountA;
+        vec2 Va = VertsA[i];
+        vec2 Vb = VertsA[Next];
         
         vec2 Edge = Vb - Va;
         // NOTE: Axis is the normal vector of Edge
-        vec2 Axis = vec(-Edge.y, Edge.x);
-        Axis = Normalize(Axis);
-        
+        vec2 Axis = vec(0.0f, 0.0f);
+        real32 AxisDepth = 0.0f;
         real32 MinA, MaxA, MinB, MaxB;
         
-        ProjectVertices(BodyA->Vertices, ARRAY_COUNT(BodyA->Vertices), Axis, &MinA, &MaxA);
-        ProjectVertices(BodyB->Vertices, ARRAY_COUNT(BodyB->Vertices), Axis, &MinB, &MaxB);
+        Axis = vec(-Edge.y, Edge.x);
+        Axis = Normalize(Axis);
         
-        if(!CheckCollisionBounds(MinA, MaxA, MinB, MaxB))
+        ProjectVertices(VertsA, VertsCountA, Axis, &MinA, &MaxA);
+        ProjectVertices(VertsB, VertsCountB, Axis, &MinB, &MaxB);
+        
+        if(MinA >= MaxB || MinB >= MaxA)
             return false;
         
-        CalculateAxisDepth(MinA, MaxA, MinB, MaxB, Axis, OutNormal, OutDepth);
+        AxisDepth = MIN(MaxB - MinA, MaxA - MinB);
+        if(AxisDepth < *OutDepth)
+        {
+            *OutDepth = AxisDepth;
+            *OutNormal = Axis;
+        }
     }
     
-    for(int i=0; i<ARRAY_COUNT(BodyB->Vertices); i++)
+    for(int i=0; i<VertsCountB; i++)
     {
-        int Next = (i + 1) % ARRAY_COUNT(BodyB->Vertices);
-        vec2 Va = BodyB->Vertices[i];
-        vec2 Vb = BodyB->Vertices[Next];
+        int Next = (i + 1) % VertsCountB;
+        vec2 Va = VertsB[i];
+        vec2 Vb = VertsB[Next];
         
         vec2 Edge = Vb - Va;
-        // NOTE: Axis is the normal vector of Edge
-        vec2 Axis = vec(-Edge.y, Edge.x);
-        Axis = Normalize(Axis);
         
+        // NOTE: Axis is the normal vector of Edge
+        vec2 Axis = vec(0.0f, 0.0f);
+        real32 AxisDepth = 0.0f;
         real32 MinA, MaxA, MinB, MaxB;
         
-        ProjectVertices(BodyA->Vertices, ARRAY_COUNT(BodyA->Vertices), Axis, &MinA, &MaxA);
-        ProjectVertices(BodyB->Vertices, ARRAY_COUNT(BodyB->Vertices), Axis, &MinB, &MaxB);
+        Axis = vec(-Edge.y, Edge.x);
+        Axis = Normalize(Axis);
         
-        if(!CheckCollisionBounds(MinA, MaxA, MinB, MaxB))
+        ProjectVertices(VertsB, VertsCountB, Axis, &MinA, &MaxA);
+        ProjectVertices(VertsA, VertsCountA, Axis, &MinB, &MaxB);
+        
+        
+        if(MinA >= MaxB || MinB >= MaxA)
             return false;
         
-        CalculateAxisDepth(MinA, MaxA, MinB, MaxB, Axis, OutNormal, OutDepth);
+        AxisDepth = MIN(MaxB - MinA, MaxA - MinB);
+        if(AxisDepth < *OutDepth)
+        {
+            *OutDepth = AxisDepth;
+            *OutNormal = Axis;
+        }
     }
+    
+    *OutDepth /= Magnitude(*OutNormal);
+    *OutNormal = Normalize(*OutNormal);
     
     vec2 Direction = BodyB->Position - BodyA->Position;
     if(Dot(Direction, *OutNormal) < 0.0f)
     {
-        *OutNormal *= -1.0f;
+        *OutNormal = -(*OutNormal);
     }
     
     return true;
@@ -377,51 +448,73 @@ IntersectCircleAndPolygon(physics_body2D* Circle, physics_body2D* Polygon,
     *OutNormal = vec(0.0f, 0.0f);
     *OutDepth = FLT_MAX;
     
+    vec2* PolygonVerts = GetPhysicsBodyTransformedVertices(Polygon);
+    int PolygonVertsCount = ARRAY_COUNT(Polygon->Vertices);
     
-    for(int i=0; i<ARRAY_COUNT(Polygon->Vertices); i++)
+    for(int i=0; i<PolygonVertsCount; i++)
     {
-        int Next = (i + 1) % ARRAY_COUNT(Polygon->Vertices);
-        vec2 Va = Polygon->Vertices[i];
-        vec2 Vb = Polygon->Vertices[Next];
+        int Next = (i + 1) % PolygonVertsCount;
+        vec2 Va = PolygonVerts[i];
+        vec2 Vb = PolygonVerts[Next];
         
         vec2 Edge = Vb - Va;
-        // NOTE: Axis is the normal vector of Edge
-        vec2 Axis = vec(-Edge.y, Edge.x);
-        Axis = Normalize(Axis);
         
+        // NOTE: Axis is the normal vector of Edge
+        vec2 Axis = vec(0.0f, 0.0f);
+        real32 AxisDepth = 0.0f;
         real32 MinA, MaxA, MinB, MaxB;
         
-        ProjectVertices(Polygon->Vertices, ARRAY_COUNT(Polygon->Vertices), Axis, &MinA, &MaxA);
+        Axis = vec(-Edge.y, Edge.x);
+        Axis = Normalize(Axis);
+        
+        ProjectVertices(PolygonVerts, PolygonVertsCount, Axis, &MinA, &MaxA);
         ProjectCircle(Circle->Position, Circle->Radius, Axis, &MinB, &MaxB);
         
-        
-        if(!CheckCollisionBounds(MinA, MaxA, MinB, MaxB))
+        if(MinA >= MaxB || MinB >= MaxA)
             return false;
         
-        CalculateAxisDepth(MinA, MaxA, MinB, MaxB, Axis, OutNormal, OutDepth);
+        AxisDepth = MIN(MaxB - MinA, MaxA - MinB);
+        if(AxisDepth < *OutDepth)
+        {
+            *OutDepth = AxisDepth;
+            *OutNormal = Axis;
+        }
     }
     
     {
         int ClosestPointIndex = FindClosestPointOnPolygon(Circle->Position, 
-                                                          Polygon->Vertices, ARRAY_COUNT(Polygon->Vertices));
-        vec2 ClosestPoint = Polygon->Vertices[ClosestPointIndex];
-        vec2 Axis = ClosestPoint - Circle->Position;
+                                                          PolygonVerts,
+                                                          PolygonVertsCount);
+        vec2 ClosestPoint = PolygonVerts[ClosestPointIndex];
         
+        vec2 Axis = vec(0.0f, 0.0f);
+        real32 AxisDepth = 0.0f;
         real32 MinA, MaxA, MinB, MaxB;
         
-        ProjectVertices(Polygon->Vertices, ARRAY_COUNT(Polygon->Vertices), Axis, &MinA, &MaxA);
+        Axis = ClosestPoint - Circle->Position;
+        Axis = Normalize(Axis);
+        
+        ProjectVertices(PolygonVerts, PolygonVertsCount, Axis, &MinA, &MaxA);
         ProjectCircle(Circle->Position, Circle->Radius, Axis, &MinB, &MaxB);
         
-        if(!CheckCollisionBounds(MinA, MaxA, MinB, MaxB))
+        if(MinA >= MaxB || MinB >= MaxA)
             return false;
         
-        CalculateAxisDepth(MinA, MaxA, MinB, MaxB, Axis, OutNormal, OutDepth);
+        AxisDepth = MIN(MaxB - MinA, MaxA - MinB);
+        if(AxisDepth < *OutDepth)
+        {
+            *OutDepth = AxisDepth;
+            *OutNormal = Axis;
+        }
     }
+    
+    *OutDepth /= Magnitude(*OutNormal);
+    *OutNormal = Normalize(*OutNormal);
     
     vec2 Direction = Polygon->Position - Circle->Position;
     if(Dot(Direction, *OutNormal) < 0.0f)
     {
-        *OutNormal *= -1.0f;
+        *OutNormal = -(*OutNormal);
     }
     
     return true;
@@ -453,7 +546,8 @@ CheckCollision2D(physics_body2D* A, physics_body2D* B, vec2* OutNormal, real32* 
         {
             Result = IntersectCircleAndPolygon(A, B,
                                                OutNormal, OutDepth);
-        }else
+        }
+        else
         {
             Result = IntersectCircleAndPolygon(B, A,
                                                OutNormal, OutDepth);
@@ -464,71 +558,46 @@ CheckCollision2D(physics_body2D* A, physics_body2D* B, vec2* OutNormal, real32* 
     return Result;
 }
 
-void 
-Transform2DPhysicsBody(physics_body2D* Body)
-{
-    RotatePhysicsBody(Body);
-    MovePhysicsBody(Body);
-    
-    if(Body->Shape == BOX)
-    {
-        vec2* TransformedVertices = GetPhysicsBodyTransformedVertices(Body);
-        for(int j = 0; j < ARRAY_COUNT(Body->Vertices); j++)
-        {
-            Body->Vertices[j] = TransformedVertices[j];
-        }
-    }
-}
-
 void
-Collide2DPhysicsBodies(physics_body2D* Bodies, int BodyCount)
+UpdatePhysicsWorld2d(physics_world2D* World, real32 ElapsedTime)
 {
-    vec2 OutNormal = vec(0.0f, 0.0f);
-    real32 OutDepth = 0.0f;
+    // NOTE: Movement step
+    for(int i=0; i<World->BodyCount; i++)
+    {
+        RotatePhysicsBody(&World->Bodies[i], ElapsedTime);
+        MovePhysicsBody(&World->Bodies[i], ElapsedTime);
+    }
     
     // NOTE: Reset collision state
-    for(int i=0; i<BodyCount; i++)
+    for(int i=0; i<World->BodyCount; i++)
     {
-        Bodies[i].IsCollided = false;
+        World->Bodies[i].IsCollided = false;
     }
     
-    for(int i=0; i<BodyCount-1; i++)
+    // NOTE: Collide step
+    for(int i=0; i<World->BodyCount-1; i++)
     {
-        physics_body2D* BodyA = &Bodies[i];
+        physics_body2D* BodyA = &World->Bodies[i];
         
-        for(int j=i+1; j<BodyCount; j++)
+        for(int j=i+1; j<World->BodyCount; j++)
         {
-            physics_body2D* BodyB = &Bodies[j];
+            physics_body2D* BodyB = &World->Bodies[j];
             
+            BodyA->LinearVelocity = vec(0,0);
+            BodyB->LinearVelocity = vec(0,0);
+            
+            vec2 OutNormal = vec(0.0f, 0.0f);
+            real32 OutDepth = 0.0f;
             if(CheckCollision2D(BodyA, BodyB, &OutNormal, &OutDepth))
             {
                 BodyA->IsCollided = true;
                 BodyB->IsCollided = true;
                 
-                // TODO: Box collisions not working properly
-                BodyA->LinearVelocity = BodyA->LinearVelocity - OutNormal * (OutDepth / 2.0f);
-                BodyB->LinearVelocity = BodyB->LinearVelocity + OutNormal * (OutDepth / 2.0f);
+                BodyA->Position = BodyA->Position - OutNormal * (OutDepth / 2.0f);
+                BodyB->Position = BodyB->Position + OutNormal * (OutDepth / 2.0f);
                 
-                vec2 RelativeVelocity = BodyB->LinearVelocity - BodyA->LinearVelocity;
-                if(Dot(RelativeVelocity, OutNormal) > 0.0f)
-                {
-                    return;
-                }
-                
-                real32 E = MIN(BodyA->Restitution, BodyB->Restitution);
-                real32 J = -(1.0f + E) * Dot(RelativeVelocity, OutNormal);
-                
-                if(BodyA->Mass + BodyB->Mass > 0)
-                {
-                    J *= (BodyA->Mass * BodyB->Mass) / (BodyA->Mass + BodyB->Mass);
-                }
-                vec2 Impulse = J * OutNormal;
-                
-                BodyA->LinearVelocity = BodyA->LinearVelocity - Impulse * (1.0f / BodyA->Mass);
-                BodyB->LinearVelocity = BodyB->LinearVelocity + Impulse * (1.0f / BodyB->Mass);
-                
-                Transform2DPhysicsBody(BodyA);
-                Transform2DPhysicsBody(BodyB);
+                BodyA->TransformUpdateRequired = true;
+                BodyB->TransformUpdateRequired = true;
             }
         }
     }
