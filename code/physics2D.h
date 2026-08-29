@@ -37,6 +37,8 @@ physics_body2D
     real32 Restitution;
     real32 Area;
     
+    vec2 Force;
+    
     bool32 IsStatic;
     bool32 IsCollided;
     
@@ -111,6 +113,13 @@ Transform(vec2 V, transform2D Transform)
     return Result;
 }
 
+vec2
+Transform(vec2 V, vec2 Pos, real32 Angle)
+{
+    transform2D T = CreateTransform2D(Pos, Angle);
+    return Transform(V, T);
+}
+
 bool32
 IsPhysicsBodyValid(physics_world2D* World, physics_body2D* Body)
 {    
@@ -167,6 +176,7 @@ CreateCirclePhysicsBody2D(physics_world2D* World, vec2 Position, real32 Radius, 
     Body.IsStatic = IsStatic;
     Body.Shape = CIRCLE;
     Body.Radius = Radius;
+    Body.Force = vec(0.0f, 0.0f);
     
     Assert(IsPhysicsBodyValid(World, &Body));
     
@@ -192,6 +202,7 @@ CreateBoxPhysicsBody2D(physics_world2D* World, vec2 Position, real32 Width, real
     Body.Shape = BOX;
     Body.Width = Width;
     Body.Height = Height;
+    Body.Force = vec(0.0f, 0.0f);
     
     Body.IsCollided = false;
     
@@ -204,7 +215,7 @@ CreateBoxPhysicsBody2D(physics_world2D* World, vec2 Position, real32 Width, real
     Body.Vertices[2] = vec( HalfWidth,  HalfHeight); // Bottom-Right
     Body.Vertices[3] = vec( HalfWidth, -HalfHeight); // Top-Right
     
-    memset(Body.TransformedVertices, 0, ARRAY_COUNT(Body.TransformedVertices));
+    memset(Body.TransformedVertices, 0, sizeof(Body.TransformedVertices));
     Body.TransformUpdateRequired = true;
     
     Body.Triangles[0] = 0;
@@ -252,6 +263,13 @@ inline void
 RotatePhysicsBody(physics_body2D* Body, real32 ElapsedTime)
 {
     Body->Rotation = Body->Rotation + Body->RotationalVelocity * ElapsedTime;
+    Body->TransformUpdateRequired = true;
+}
+
+inline void
+ApplyForce(physics_body2D* Body, real32 ElapsedTime)
+{
+    Body->LinearVelocity = Body->LinearVelocity + Body->Force * ElapsedTime;
     Body->TransformUpdateRequired = true;
 }
 
@@ -564,8 +582,12 @@ UpdatePhysicsWorld2d(physics_world2D* World, real32 ElapsedTime)
     // NOTE: Movement step
     for(int i=0; i<World->BodyCount; i++)
     {
+        ApplyForce(&World->Bodies[i], ElapsedTime);
         RotatePhysicsBody(&World->Bodies[i], ElapsedTime);
         MovePhysicsBody(&World->Bodies[i], ElapsedTime);
+        
+        // NOTE: Reset the force to zero
+        World->Bodies[i].Force = vec(0.0f, 0.0f);
     }
     
     // NOTE: Reset collision state
@@ -583,9 +605,6 @@ UpdatePhysicsWorld2d(physics_world2D* World, real32 ElapsedTime)
         {
             physics_body2D* BodyB = &World->Bodies[j];
             
-            BodyA->LinearVelocity = vec(0,0);
-            BodyB->LinearVelocity = vec(0,0);
-            
             vec2 OutNormal = vec(0.0f, 0.0f);
             real32 OutDepth = 0.0f;
             if(CheckCollision2D(BodyA, BodyB, &OutNormal, &OutDepth))
@@ -593,8 +612,11 @@ UpdatePhysicsWorld2d(physics_world2D* World, real32 ElapsedTime)
                 BodyA->IsCollided = true;
                 BodyB->IsCollided = true;
                 
-                BodyA->Position = BodyA->Position - OutNormal * (OutDepth / 2.0f);
+                BodyA->Position = BodyA->Position - (OutNormal * (OutDepth / 2.0f));
                 BodyB->Position = BodyB->Position + OutNormal * (OutDepth / 2.0f);
+                
+                BodyA->LinearVelocity = -1.0f*(OutNormal * (OutDepth / 2.0f));
+                BodyB->LinearVelocity = OutNormal * (OutDepth / 2.0f);
                 
                 BodyA->TransformUpdateRequired = true;
                 BodyB->TransformUpdateRequired = true;

@@ -2,6 +2,7 @@
 #include <math.h>
 #include "defines.h"
 #include "simple_math.h"
+#include "physics2D.h"
 
 #define ASSERT_CONDITION(condition, message) do { \
 if (!(condition)) { \
@@ -31,7 +32,7 @@ fprintf(stdout, "[PASS] %s:%d in %s: %s (Expected %f, Got %f)\n", __FILE__, __LI
 // IMPORTANT: DO NOT RE-ARRANGE THESE FILES
 #include "simple_math_tests.cpp"
 
-int main(int ArgsCount, char* Args)
+int main(int ArgsCount, char** Args)
 {
     int f = 0;
     

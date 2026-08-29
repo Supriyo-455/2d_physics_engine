@@ -57,6 +57,7 @@ typedef struct
     real32 dy;
     real32 Speed;
     real32 RotationalVelocity;
+    real32 ForceMagnitude;
     
     bool32 Running;
 }game;

@@ -480,6 +480,7 @@ main(int argc, char* args[])
         Game.dx = 0.0f;
         Game.dy = 0.0f;
         Game.Speed = 100.0f;
+        Game.ForceMagnitude = 10.0f;
         
         Game.Camera = {};
         Game.Camera.Zoom = 1.0f;
@@ -532,7 +533,7 @@ main(int argc, char* args[])
             Bodies[CircleIndex] = CreateCirclePhysicsBody2D(&World,
                                                             vec(X, Y),
                                                             Radius,
-                                                            1.90f,
+                                                            0.5f,
                                                             0.0f,
                                                             false);
             
@@ -546,7 +547,7 @@ main(int argc, char* args[])
                                                       vec(X, Y),
                                                       Width,
                                                       Height,
-                                                      0.50f,
+                                                      0.5f,
                                                       0.0f,
                                                       false);
         }
@@ -574,13 +575,13 @@ main(int argc, char* args[])
             
             if(Game.dx != 0.0f || Game.dy != 0.0f)
             {            
-                vec2 Direction = Normalize(vec(Game.dx, Game.dy));
-                vec2 Velocity = (Direction * Game.Speed);
-                World.Bodies[0].LinearVelocity = Velocity;
-            }
-            else
-            {
-                World.Bodies[0].LinearVelocity = vec(0.0f, 0.0f);
+                // vec2 Direction = Normalize(vec(Game.dx, Game.dy));
+                // vec2 Velocity = (Direction * Game.Speed);
+                // World.Bodies[0].LinearVelocity = Velocity;
+                
+                vec2 ForceDirection = Normalize(vec(Game.dx, Game.dy));
+                vec2 Force = (ForceDirection * Game.ForceMagnitude);
+                World.Bodies[0].Force = Force;
             }
             
             if(Game.RotationalVelocity != 0.0f)

@@ -20,11 +20,17 @@ load_paths = {
 			{ .path = "code/", .relative = true, .recursive = true },
 			{ .path = "misc/", .relative = true, .recursive = true }
 	},
+	.linux = {
+			{ .path = ".", .relative = true, .recursive = false },
+			{ .path = "code/", .relative = true, .recursive = true },
+			{ .path = "misc/", .relative = true, .recursive = true }
+	},
 };
 
 commands = {
 	.build = {
 		.win = "echo building: Physics Engine & misc\\build.bat",
+		.linux = "echo building: Physics Engine && ./misc/build.sh",
 		.out = "*compilation*",
 		.footer_panel = false,
 		.save_dirty_files = true,
@@ -32,12 +38,14 @@ commands = {
 	},
 	.debug = {
 		.win = "misc\\debug.bat",
+		.linux = "./misc/debug.sh",
 		.footer_panel = false,
 		.save_dirty_files = true,
 		.cursor_at_end = false,
 	},
 	.test = {
 		.win = "echo Building Tests & misc\\test.bat",
+		.linux = "echo building: Tests && ./misc/test.sh",
 		.out = "*compilation*",		
 		.footer_panel = false,
 		.save_dirty_files = true,
@@ -45,6 +53,7 @@ commands = {
 	},
 	.todo = {
 		.win = "echo Things to-do & code\\todo.bat",
+		.linux = "echo Things to-do && ./misc/todo.sh",
 		.out = "*compilation*",		
 		.footer_panel = false,
 		.save_dirty_files = true,

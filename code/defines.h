@@ -4,12 +4,17 @@
 #define DEFINES_H
 
 #include <stdio.h>
+#include <string.h>
 #include <string>
 #include <stdarg.h>
 #include <math.h>
 #include <stdint.h>
 #include <float.h>
 #include <stdlib.h>
+
+#ifndef _MSC_VER
+#define sprintf_s(buf, ...) snprintf(buf, sizeof(buf), __VA_ARGS__)
+#endif
 
 // TODO: Need to use Opengl in future
 #define SDL_MAIN_HANDLED
