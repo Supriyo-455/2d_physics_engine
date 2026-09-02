@@ -258,6 +258,22 @@ inline vec2 operator*(real32 A, vec2 B)
     return Result;
 }
 
+inline vec2 operator/(vec2 B, real32 A)
+{
+    vec2 Result;
+    Result.x = A / B.x;
+    Result.y = A / B.y;
+    return Result;
+}
+
+inline vec2 operator/(real32 A, vec2 B)
+{
+    vec2 Result;
+    Result.x = A / B.x;
+    Result.y = A / B.y;
+    return Result;
+}
+
 inline vec2 &operator*=(vec2 &B, real32 A)
 {
     B = A * B;

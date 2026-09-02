@@ -246,13 +246,6 @@ vec2 FindPolygonCenter(vec2* Vertices, int VerticesCount)
 }
 
 inline void
-TranslatePhysicsBody(physics_body2D* Body, real32 ElapsedTime)
-{
-    Body->Position = Body->Position + Body->LinearVelocity * ElapsedTime;
-    Body->TransformUpdateRequired = true;
-}
-
-inline void
 MovePhysicsBody(physics_body2D* Body, real32 ElapsedTime)
 {
     Body->Position = Body->Position + Body->LinearVelocity * ElapsedTime;
@@ -269,8 +262,12 @@ RotatePhysicsBody(physics_body2D* Body, real32 ElapsedTime)
 inline void
 ApplyForce(physics_body2D* Body, real32 ElapsedTime)
 {
-    Body->LinearVelocity = Body->LinearVelocity + Body->Force * ElapsedTime;
-    Body->TransformUpdateRequired = true;
+    if (Body->Mass > 0.0f)
+    {
+        vec2 Acceleration = Body->Force * (1.0f / Body->Mass);
+        Body->LinearVelocity = Body->LinearVelocity + Acceleration * ElapsedTime;
+        Body->TransformUpdateRequired = true;
+    }
 }
 
 vec2*
@@ -577,6 +574,26 @@ CheckCollision2D(physics_body2D* A, physics_body2D* B, vec2* OutNormal, real32* 
 }
 
 void
+ResolveCollision(physics_body2D* A, physics_body2D* B, vec2 OutNormal)
+{
+    vec2 RelativeVelocity = B->LinearVelocity - A->LinearVelocity;
+    real32 e = MIN(A->Restitution, B->Restitution);
+    
+    // NOTE: If objects are already separating, do not apply impulse
+    real32 VelAlongNormal = Dot(RelativeVelocity, OutNormal);
+    if (VelAlongNormal > 0.0f)
+        return;
+    
+    real32 j = -(1.0f + e) * VelAlongNormal;
+    j /= (1.0f / A->Mass) + (1.0f / B->Mass);
+    
+    // Multiply OutNormal by scalar impulse/mass instead of dividing by a vector
+    vec2 Impulse = OutNormal * j;
+    A->LinearVelocity = A->LinearVelocity - Impulse * (1.0f / A->Mass);
+    B->LinearVelocity = B->LinearVelocity + Impulse * (1.0f / B->Mass);
+}
+
+void
 UpdatePhysicsWorld2d(physics_world2D* World, real32 ElapsedTime)
 {
     // NOTE: Movement step
@@ -615,8 +632,7 @@ UpdatePhysicsWorld2d(physics_world2D* World, real32 ElapsedTime)
                 BodyA->Position = BodyA->Position - (OutNormal * (OutDepth / 2.0f));
                 BodyB->Position = BodyB->Position + OutNormal * (OutDepth / 2.0f);
                 
-                BodyA->LinearVelocity = -1.0f*(OutNormal * (OutDepth / 2.0f));
-                BodyB->LinearVelocity = OutNormal * (OutDepth / 2.0f);
+                ResolveCollision(BodyA, BodyB, OutNormal);
                 
                 BodyA->TransformUpdateRequired = true;
                 BodyB->TransformUpdateRequired = true;

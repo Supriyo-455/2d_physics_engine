@@ -480,7 +480,7 @@ main(int argc, char* args[])
         Game.dx = 0.0f;
         Game.dy = 0.0f;
         Game.Speed = 100.0f;
-        Game.ForceMagnitude = 10.0f;
+        Game.ForceMagnitude = 15000.0f;
         
         Game.Camera = {};
         Game.Camera.Zoom = 1.0f;
@@ -534,7 +534,7 @@ main(int argc, char* args[])
                                                             vec(X, Y),
                                                             Radius,
                                                             0.5f,
-                                                            0.0f,
+                                                            0.8f,
                                                             false);
             
             X = RandomUnilateral() * SCREEN_WIDTH;
@@ -548,7 +548,7 @@ main(int argc, char* args[])
                                                       Width,
                                                       Height,
                                                       0.5f,
-                                                      0.0f,
+                                                      0.5f,
                                                       false);
         }
         World.Bodies = Bodies;
