@@ -33,6 +33,7 @@ physics_body2D
     real32 RotationalVelocity;
     
     real32 Mass;
+    real32 InvMass;
     real32 Density;
     real32 Restitution;
     real32 Area;
@@ -178,6 +179,15 @@ CreateCirclePhysicsBody2D(physics_world2D* World, vec2 Position, real32 Radius, 
     Body.Radius = Radius;
     Body.Force = vec(0.0f, 0.0f);
     
+    if(!Body.IsStatic)
+    {
+        Body.InvMass = 1.0f / Body.Mass;
+    }
+    else
+    {
+        Body.InvMass = 0.0f;
+    }
+    
     Assert(IsPhysicsBodyValid(World, &Body));
     
     return Body;
@@ -225,6 +235,15 @@ CreateBoxPhysicsBody2D(physics_world2D* World, vec2 Position, real32 Width, real
     Body.Triangles[4] = 3;
     Body.Triangles[5] = 0;
     
+    if(!Body.IsStatic)
+    {
+        Body.InvMass = 1.0f / Body.Mass;
+    }
+    else
+    {
+        Body.InvMass = 0.0f;
+    }
+    
     Assert(IsPhysicsBodyValid(World, &Body));
     
     return Body;
@@ -264,7 +283,7 @@ ApplyForce(physics_body2D* Body, real32 ElapsedTime)
 {
     if (Body->Mass > 0.0f)
     {
-        vec2 Acceleration = Body->Force * (1.0f / Body->Mass);
+        vec2 Acceleration = Body->Force * Body->InvMass;
         Body->LinearVelocity = Body->LinearVelocity + Acceleration * ElapsedTime;
         Body->TransformUpdateRequired = true;
     }
@@ -585,12 +604,12 @@ ResolveCollision(physics_body2D* A, physics_body2D* B, vec2 OutNormal)
         return;
     
     real32 j = -(1.0f + e) * VelAlongNormal;
-    j /= (1.0f / A->Mass) + (1.0f / B->Mass);
+    j /= A->InvMass + B->InvMass;
     
     // Multiply OutNormal by scalar impulse/mass instead of dividing by a vector
     vec2 Impulse = OutNormal * j;
-    A->LinearVelocity = A->LinearVelocity - Impulse * (1.0f / A->Mass);
-    B->LinearVelocity = B->LinearVelocity + Impulse * (1.0f / B->Mass);
+    A->LinearVelocity = A->LinearVelocity - Impulse * A->InvMass;
+    B->LinearVelocity = B->LinearVelocity + Impulse * B->InvMass;
 }
 
 void
@@ -622,6 +641,11 @@ UpdatePhysicsWorld2d(physics_world2D* World, real32 ElapsedTime)
         {
             physics_body2D* BodyB = &World->Bodies[j];
             
+            if(BodyA->IsStatic && BodyB->IsStatic)
+            {
+                continue;
+            }
+            
             vec2 OutNormal = vec(0.0f, 0.0f);
             real32 OutDepth = 0.0f;
             if(CheckCollision2D(BodyA, BodyB, &OutNormal, &OutDepth))
@@ -629,8 +653,20 @@ UpdatePhysicsWorld2d(physics_world2D* World, real32 ElapsedTime)
                 BodyA->IsCollided = true;
                 BodyB->IsCollided = true;
                 
-                BodyA->Position = BodyA->Position - (OutNormal * (OutDepth / 2.0f));
-                BodyB->Position = BodyB->Position + OutNormal * (OutDepth / 2.0f);
+                // NOTE: Compress this code
+                if(BodyA->IsStatic)
+                {
+                    BodyB->Position = BodyB->Position + OutNormal * (OutDepth);
+                }
+                else if(BodyB->IsStatic)
+                {
+                    BodyA->Position = BodyA->Position - OutNormal * (OutDepth);
+                }
+                else
+                {
+                    BodyA->Position = BodyA->Position - (OutNormal * (OutDepth / 2.0f));
+                    BodyB->Position = BodyB->Position + OutNormal * (OutDepth / 2.0f);
+                }
                 
                 ResolveCollision(BodyA, BodyB, OutNormal);
                 

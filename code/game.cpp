@@ -508,7 +508,14 @@ main(int argc, char* args[])
             .r=0.0f,
             .g=0.0f,
             .b=0.0f,
-            .a=0.0f
+            .a=1.0f
+        };
+        
+        vec4 RED = {
+            .r=1.0f,
+            .g=0.0f,
+            .b=0.0f,
+            .a=1.0f
         };
         
         physics_world2D World = {0};
@@ -530,12 +537,14 @@ main(int argc, char* args[])
             
             real32 Radius = 10.0f;
             
+            bool32 RandomBoolean = Floor(RandomUnilateral());
+            
             Bodies[CircleIndex] = CreateCirclePhysicsBody2D(&World,
                                                             vec(X, Y),
                                                             Radius,
                                                             0.5f,
                                                             0.8f,
-                                                            false);
+                                                            RandomBoolean);
             
             X = RandomUnilateral() * SCREEN_WIDTH;
             Y = RandomUnilateral() * SCREEN_HEIGHT;
@@ -543,13 +552,15 @@ main(int argc, char* args[])
             real32 Width = 20.0f;
             real32 Height = 20.0f;
             
+            RandomBoolean = RandomUnilateral();
+            
             Bodies[BoxIndex] = CreateBoxPhysicsBody2D(&World,
                                                       vec(X, Y),
                                                       Width,
                                                       Height,
                                                       0.5f,
                                                       0.5f,
-                                                      false);
+                                                      RandomBoolean);
         }
         World.Bodies = Bodies;
         
@@ -612,8 +623,12 @@ main(int argc, char* args[])
                 if(IsVisible(World.Bodies[i].Position.x, World.Bodies[i].Position.y, 
                              Width, Height, &Game.Camera))
                 {
-                    RenderPhysicsBody(&Game.Camera, Game.Renderer, &World.Bodies[i], 
-                                      Colors[i], WHITE);
+                    if(World.Bodies[i].IsStatic)
+                        RenderPhysicsBody(&Game.Camera, Game.Renderer, &World.Bodies[i], 
+                                          RED, BLACK);
+                    else
+                        RenderPhysicsBody(&Game.Camera, Game.Renderer, &World.Bodies[i], 
+                                          Colors[i], WHITE);
                 }
             }
             
