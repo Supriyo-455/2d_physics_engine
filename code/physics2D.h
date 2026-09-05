@@ -4,6 +4,7 @@
 #define PHYSICS2_D_H
 
 #include "simple_math.h"
+#include <vector>
 
 #define PHYSICS_BODY_COUNT 20
 
@@ -62,15 +63,15 @@ physics_body2D
 struct
 physics_world2D
 {
-    physics_body2D* Bodies;
-    int BodyCount;
+	std::vector<physics_body2D> Bodies;
+	inline local_persist const real32 ForceMultiplier = 1000.0f;
     
     // NOTE: Gravity unit - meter/sec^2
     inline local_persist const vec2 Gravity = vec(0.0f, 9.81f);
     
     // NOTE: Size unit - meter^2
     inline local_persist const real32 MinBodySize = 0.01f * 0.01f;
-    inline local_persist const real32 MaxBodySize = 64.0f * 64.0f;
+    inline local_persist const real32 MaxBodySize = 1000.0f * 1000.0f;
     
     // NOTE: Density unit - gm/cm^3
     inline local_persist const real32 MinDensity = 0.5f;
@@ -284,6 +285,17 @@ ApplyForce(physics_body2D* Body, real32 ElapsedTime)
     if (Body->Mass > 0.0f)
     {
         vec2 Acceleration = Body->Force * Body->InvMass;
+        Body->LinearVelocity = Body->LinearVelocity + Acceleration * ElapsedTime;
+        Body->TransformUpdateRequired = true;
+    }
+}
+
+inline void
+ApplyGravity(physics_body2D* Body, vec2 Gravity, real32 ForceMultiplier, real32 ElapsedTime)
+{
+    if (Body->Mass > 0.0f)
+    {
+        vec2 Acceleration = Gravity * Body->InvMass * ForceMultiplier;
         Body->LinearVelocity = Body->LinearVelocity + Acceleration * ElapsedTime;
         Body->TransformUpdateRequired = true;
     }
@@ -616,8 +628,9 @@ void
 UpdatePhysicsWorld2d(physics_world2D* World, real32 ElapsedTime)
 {
     // NOTE: Movement step
-    for(int i=0; i<World->BodyCount; i++)
+    for(int i=0; i<World->Bodies.size(); i++)
     {
+		ApplyGravity(&World->Bodies[i], World->Gravity, World->ForceMultiplier, ElapsedTime);
         ApplyForce(&World->Bodies[i], ElapsedTime);
         RotatePhysicsBody(&World->Bodies[i], ElapsedTime);
         MovePhysicsBody(&World->Bodies[i], ElapsedTime);
@@ -627,17 +640,17 @@ UpdatePhysicsWorld2d(physics_world2D* World, real32 ElapsedTime)
     }
     
     // NOTE: Reset collision state
-    for(int i=0; i<World->BodyCount; i++)
+    for(int i=0; i<World->Bodies.size(); i++)
     {
         World->Bodies[i].IsCollided = false;
     }
     
     // NOTE: Collide step
-    for(int i=0; i<World->BodyCount-1; i++)
+    for(int i=0; i<World->Bodies.size()-1; i++)
     {
         physics_body2D* BodyA = &World->Bodies[i];
         
-        for(int j=i+1; j<World->BodyCount; j++)
+        for(int j=i+1; j<World->Bodies.size(); j++)
         {
             physics_body2D* BodyB = &World->Bodies[j];
             

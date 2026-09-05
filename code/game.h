@@ -10,6 +10,34 @@
 
 #define PADDING_20 20
 
+global vec4 WHITE = {
+	.r=1.0f,
+	.g=1.0f,
+	.b=1.0f,
+	.a=1.0f
+};
+
+global vec4 GRAY = {
+	.r=0.5f,
+	.g=0.5f,
+	.b=0.5f,
+	.a=1.0f
+};
+
+global vec4 BLACK = {
+	.r=0.0f,
+	.g=0.0f,
+	.b=0.0f,
+	.a=1.0f
+};
+
+global vec4 RED = {
+	.r=1.0f,
+	.g=0.0f,
+	.b=0.0f,
+	.a=1.0f
+};
+
 struct
 texture
 {
@@ -59,6 +87,8 @@ typedef struct
     real32 RotationalVelocity;
     real32 ForceMagnitude;
     
+	physics_world2D* World;
+	
     bool32 Running;
 }game;
 

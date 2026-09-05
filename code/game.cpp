@@ -281,7 +281,7 @@ GenerateRandomColor(vec4* ColorArray, int ArrayCount)
 }
 
 bool32
-InitializeGame(game* Game)
+InitializeEngine(game* Game)
 {
     bool32 success = true;
     
@@ -416,7 +416,11 @@ HandleInput(game* Game)
             {
                 case SDLK_r:
                 {
-                    break;
+					physics_body2D Body = CreateCirclePhysicsBody2D(Game->World, vec(Game->Camera.Position.x, Game->Camera.Position.y), 10.0f, 0.6f, 0.50f, false);
+					
+					Game->World->Bodies.push_back(Body);
+                    
+					break;
                 }
                 
                 case SDLK_c:
@@ -462,108 +466,59 @@ ClearRenderer(SDL_Renderer* Renderer, vec4 Color)
     SDL_RenderClear(Renderer);
 }
 
+void
+InitializeGameAndWorld(game* Game, physics_world2D* World)
+{
+	InitializeRandomNumbers();
+	
+	Game->Running = true;
+	Game->dx = 0.0f;
+	Game->dy = 0.0f;
+	Game->Speed = 100.0f;
+	Game->ForceMagnitude = 15000.0f;
+	
+	Game->Camera = {0};
+	Game->Camera.Zoom = 1.0f;
+	Game->Camera.Pan = 0.0f;
+	Game->Camera.Width = SCREEN_WIDTH;
+	Game->Camera.Height = SCREEN_HEIGHT;
+	Game->Camera.Position.x = SCREEN_WIDTH / 2.0f;
+	Game->Camera.Position.y = SCREEN_HEIGHT / 2.0f;
+	
+	Game->World = World;
+	
+	physics_body2D BottomPlatform = CreateBoxPhysicsBody2D(Game->World,
+														   vec(0.0f, SCREEN_HEIGHT - PADDING_20),
+														   SCREEN_WIDTH,
+														   PADDING_20 + 1.0f,
+														   0.5f,
+														   0.5f,
+														   true);
+	Game->World->Bodies.push_back(BottomPlatform);
+	
+	physics_body2D Player = CreateCirclePhysicsBody2D(Game->World, vec(SCREEN_WIDTH/2, SCREEN_HEIGHT/2), 10.0f, 0.6f, 0.50f, false);
+	
+	Game->World->Bodies.push_back(Player);
+}
+
 int
 main(int argc, char* args[])
 {
     game Game = {};
     
-    if(!InitializeGame(&Game))
+    if(!InitializeEngine(&Game))
     {
         LOG_ERROR("Failed to initialize!\n");
         return -1;
     }
     else
     {
-        InitializeRandomNumbers();
+		physics_world2D World = {};
+		InitializeGameAndWorld(&Game, &World);
         
-        Game.Running = true;
-        Game.dx = 0.0f;
-        Game.dy = 0.0f;
-        Game.Speed = 100.0f;
-        Game.ForceMagnitude = 15000.0f;
-        
-        Game.Camera = {};
-        Game.Camera.Zoom = 1.0f;
-        Game.Camera.Pan = 0.0f;
-        Game.Camera.Width = SCREEN_WIDTH;
-        Game.Camera.Height = SCREEN_HEIGHT;
-        Game.Camera.Position.x = SCREEN_WIDTH / 2.0f;
-        Game.Camera.Position.y = SCREEN_HEIGHT / 2.0f;
-        
-        vec4 WHITE = {
-            .r=1.0f,
-            .g=1.0f,
-            .b=1.0f,
-            .a=1.0f
-        };
-        
-        vec4 GRAY = {
-            .r=0.5f,
-            .g=0.5f,
-            .b=0.5f,
-            .a=1.0f
-        };
-        
-        vec4 BLACK = {
-            .r=0.0f,
-            .g=0.0f,
-            .b=0.0f,
-            .a=1.0f
-        };
-        
-        vec4 RED = {
-            .r=1.0f,
-            .g=0.0f,
-            .b=0.0f,
-            .a=1.0f
-        };
-        
-        physics_world2D World = {0};
-        World.BodyCount = PHYSICS_BODY_COUNT;
-        
-        vec4 Colors[PHYSICS_BODY_COUNT] = {0};
-        GenerateRandomColor(Colors, PHYSICS_BODY_COUNT);
-        
-        physics_body2D Bodies[PHYSICS_BODY_COUNT] = {0};
-        for(int i=0; 
-            i<PHYSICS_BODY_COUNT; 
-            i+=2)
-        {
-            int BoxIndex = i;
-            int CircleIndex = i + 1;
-            
-            real32 X = RandomUnilateral() * SCREEN_WIDTH;
-            real32 Y = RandomUnilateral() * SCREEN_HEIGHT;
-            
-            real32 Radius = 10.0f;
-            
-            bool32 RandomBoolean = Floor(RandomUnilateral());
-            
-            Bodies[CircleIndex] = CreateCirclePhysicsBody2D(&World,
-                                                            vec(X, Y),
-                                                            Radius,
-                                                            0.5f,
-                                                            0.8f,
-                                                            RandomBoolean);
-            
-            X = RandomUnilateral() * SCREEN_WIDTH;
-            Y = RandomUnilateral() * SCREEN_HEIGHT;
-            
-            real32 Width = 20.0f;
-            real32 Height = 20.0f;
-            
-            RandomBoolean = RandomUnilateral();
-            
-            Bodies[BoxIndex] = CreateBoxPhysicsBody2D(&World,
-                                                      vec(X, Y),
-                                                      Width,
-                                                      Height,
-                                                      0.5f,
-                                                      0.5f,
-                                                      RandomBoolean);
-        }
-        World.Bodies = Bodies;
-        
+		vec4 Colors[PHYSICS_BODY_COUNT] = {0};
+		GenerateRandomColor(Colors, PHYSICS_BODY_COUNT);
+		
         timer FPSTimer = {};
         TimerStart(&FPSTimer);
         
@@ -592,42 +547,42 @@ main(int argc, char* args[])
                 
                 vec2 ForceDirection = Normalize(vec(Game.dx, Game.dy));
                 vec2 Force = (ForceDirection * Game.ForceMagnitude);
-                World.Bodies[0].Force = Force;
+                Game.World->Bodies[1].Force = Force;
             }
             
             if(Game.RotationalVelocity != 0.0f)
-                World.Bodies[0].RotationalVelocity = Game.RotationalVelocity;
+                Game.World->Bodies[1].RotationalVelocity = Game.RotationalVelocity;
             else
-                World.Bodies[0].RotationalVelocity = 0.0f;
+                Game.World->Bodies[1].RotationalVelocity = 0.0f;
             
-            UpdatePhysicsWorld2d(&World, DeltaTimeSeconds);
+            UpdatePhysicsWorld2d(Game.World, DeltaTimeSeconds);
             
             ClearRenderer(Game.Renderer, GRAY);
             
             // NOTE: Render all the physics bodies
-            for(int i=0; i<World.BodyCount; i++)
+            for(int i=0; i<Game.World->Bodies.size(); i++)
             {
                 real32 Width, Height;
-                if(World.Bodies[i].Shape == CIRCLE)
+                if(Game.World->Bodies[i].Shape == CIRCLE)
                 {
-                    Width = 2.0f * World.Bodies[i].Radius;
-                    Height = 2.0f * World.Bodies[i].Radius;
+                    Width = 2.0f * Game.World->Bodies[i].Radius;
+                    Height = 2.0f * Game.World->Bodies[i].Radius;
                 }
                 else
                 {
-                    Width = World.Bodies[i].Width;
-                    Height = World.Bodies[i].Height;
+                    Width = Game.World->Bodies[i].Width;
+                    Height = Game.World->Bodies[i].Height;
                 }
                 
                 
-                if(IsVisible(World.Bodies[i].Position.x, World.Bodies[i].Position.y, 
+                if(IsVisible(Game.World->Bodies[i].Position.x, Game.World->Bodies[i].Position.y, 
                              Width, Height, &Game.Camera))
                 {
-                    if(World.Bodies[i].IsStatic)
-                        RenderPhysicsBody(&Game.Camera, Game.Renderer, &World.Bodies[i], 
+                    if(Game.World->Bodies[i].IsStatic)
+                        RenderPhysicsBody(&Game.Camera, Game.Renderer, &Game.World->Bodies[i], 
                                           RED, BLACK);
                     else
-                        RenderPhysicsBody(&Game.Camera, Game.Renderer, &World.Bodies[i], 
+                        RenderPhysicsBody(&Game.Camera, Game.Renderer, &Game.World->Bodies[i], 
                                           Colors[i], WHITE);
                 }
             }
