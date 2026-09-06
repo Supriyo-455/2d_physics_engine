@@ -55,7 +55,6 @@ Rendering is handled via **SDL2**. The engine features custom CPU-driven rasteri
     ```cmd
     misc\test.bat
     ```
-5.  Run the executable
 
 ### Building and Running on Linux
 
@@ -72,7 +71,6 @@ Rendering is handled via **SDL2**. The engine features custom CPU-driven rasteri
     ```bash
     ./misc/test.sh
     ```
-5.  Run the executable
 
 ## Controls
 
