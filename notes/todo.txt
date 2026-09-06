@@ -1,0 +1,6 @@
+Issues ->
+* Currently the camera scaling and panning is bit hacky, need to put bounds on those. Or more specifically make a hard bound for the world!
+* Texture rendered on the screen is jittery, make them pleasant, may be dont update fps so rapidly.
+* The drawing code is bad may be make it better by not hard-coding the colors by default.
+* Overall code is messy compress out functions that can be reused.
+* FPS is compromised when creating more than 200 physics bodies, this is worst performing physics engine.

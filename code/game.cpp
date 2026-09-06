@@ -44,7 +44,7 @@ void RenderTextFromCenter(int XPos,
     
     SDL_Color SdlColor = ConvertToSDLColor(TextColor); 
     
-    SDL_Surface* TextSurface = TTF_RenderText_Solid(Font, TextureText, SdlColor);
+    SDL_Surface* TextSurface = TTF_RenderText_Blended(Font, TextureText, SdlColor);
     if(TextSurface == NULL)
     {
         LOG_ERROR("Unable to render text surface! SDL_ttf Error: %s\n", TTF_GetError());
@@ -313,8 +313,12 @@ InitializeEngine(game* Game)
         }
         else
         {
-            Game->Renderer = SDL_CreateRenderer(Game->Window,
+			// NOTE: Set linear filtering BEFORE renderer creation
+			SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "1");
+            
+			Game->Renderer = SDL_CreateRenderer(Game->Window,
                                                 -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+			
             
             if(Game->Renderer == NULL)
             {
@@ -332,7 +336,7 @@ InitializeEngine(game* Game)
                     return false;
                 }
                 
-                // NOTE:Initialize SDL_ttf
+                // NOTE: Initialize SDL_ttf
 				// TODO: Font customization functionality
                 if (TTF_Init() == -1)
                 {
@@ -341,12 +345,17 @@ InitializeEngine(game* Game)
                 }
                 else
                 {
-                    Game->Font = TTF_OpenFont("assets/font/AbrilFatface-Regular.ttf", 50);
+                    Game->Font = TTF_OpenFont("assets/font/Lightweight.ttf", 128);
                     if (Game->Font == NULL)
                     {
                         LOG_ERROR("Failed to load lazy font! SDL_ttf Error: %s\n", TTF_GetError());
                         return false;
                     }
+					else
+					{
+						TTF_SetFontStyle(Game->Font, TTF_STYLE_NORMAL);
+						TTF_SetFontHinting(Game->Font, TTF_HINTING_LIGHT);
+					}
                 }
             }
         }
@@ -450,6 +459,20 @@ HandleInput(game* Game)
                     
 					break;
                 }
+				
+				case SDLK_b:
+                {
+					int MouseX, MouseY;
+					SDL_GetMouseState(&MouseX, &MouseY);
+					
+					vec2 MousePos = GetRelativeWorldPosition(&Game->Camera, (real32)MouseX, (real32)MouseY); 
+					
+					physics_body2D Body = CreateBoxPhysicsBody2D(Game->World, vec(MousePos.x, MousePos.y), 20.0f, 20.0f, 0.6f, 0.50f, false);
+					
+					Game->World->Bodies.push_back(Body);
+                    
+					break;
+                }
                 
                 case SDLK_r:
                 {
@@ -476,18 +499,13 @@ HandleInput(game* Game)
     
     Game->dx = 0.0f;
     Game->dy = 0.0f;
-    Game->RotationalVelocity = 0.0f;
     
     const Uint8* KeyState = SDL_GetKeyboardState(NULL);
     
-    // TODO: Movement code is not working properly!!!
     if(KeyState[SDL_SCANCODE_RIGHT]) Game->dx += 1.0f;
     if(KeyState[SDL_SCANCODE_LEFT])  Game->dx += -1.0f;
     if(KeyState[SDL_SCANCODE_UP])    Game->dy += -1.0f;
     if(KeyState[SDL_SCANCODE_DOWN])  Game->dy += 1.0f;
-    
-    if(KeyState[SDL_SCANCODE_R]) 
-        Game->RotationalVelocity = 1.0f;
 }
 
 void
@@ -658,7 +676,8 @@ main(int argc, char* args[])
                                      buf,
                                      Game.Renderer,
                                      Game.Font,
-                                     WHITE);
+                                     WHITE,
+									 40);
             }
             
             
@@ -671,13 +690,14 @@ main(int argc, char* args[])
                 }
                 
                 char buf[256] = {};
-                sprintf_s(buf, "FPS: %d", FPS);
+                sprintf_s(buf, "FPS: %d, Total Physics Bodies: %ld", FPS, Game.World->Bodies.size());
                 RenderTextFromCenter(SCREEN_WIDTH / 2,
                                      SCREEN_HEIGHT - PADDING_20,
                                      buf,
                                      Game.Renderer,
                                      Game.Font,
-                                     WHITE);
+                                     WHITE,
+									 40);
             }
             
             SDL_RenderPresent(Game.Renderer);

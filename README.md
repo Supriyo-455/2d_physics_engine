@@ -55,6 +55,7 @@ Rendering is handled via **SDL2**. The engine features custom CPU-driven rasteri
     ```cmd
     misc\test.bat
     ```
+5.  Run the executable
 
 ### Building and Running on Linux
 
@@ -71,6 +72,17 @@ Rendering is handled via **SDL2**. The engine features custom CPU-driven rasteri
     ```bash
     ./misc/test.sh
     ```
+5.  Run the executable
+
+## Controls
+
+Once the engine is running, you can interact with the simulation using the following controls:
+
+*   **`C`**: Spawn a circle physics body at the current mouse cursor position.
+*   **`B`**: Spawn a box physics body at the current mouse cursor position.
+*   **`R` (Press)**: Clear all spawned bodies (reset the scene).
+*   **`Right Mouse Button` + Drag**: Pan the camera around the world.
+*   **`Mouse Wheel`**: Zoom the camera in and out.
 
 ## Development and Tools
 
