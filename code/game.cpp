@@ -268,15 +268,22 @@ RenderPhysicsBody(simple_camera* Camera, SDL_Renderer* Renderer, physics_body2D*
     }
 }
 
+vec4
+GenerateRandomColor()
+{
+	real32 R = RandomUnilateral();
+	real32 G = RandomUnilateral();
+	real32 B = RandomUnilateral();
+	
+	return vec(R, G, B, 1.0f);
+}
+
 void 
-GenerateRandomColor(vec4* ColorArray, int ArrayCount)
+GenerateRandomColors(vec4* ColorArray, int ArrayCount)
 {
     for(int i=0; i<ArrayCount; i++)
     {
-        float R = RandomUnilateral();
-        float G = RandomUnilateral();
-        float B = RandomUnilateral();
-        ColorArray[i] = vec(R, G, B, 1.0f);
+        ColorArray[i] = GenerateRandomColor();
     }
 }
 
@@ -326,6 +333,7 @@ InitializeEngine(game* Game)
                 }
                 
                 // NOTE:Initialize SDL_ttf
+				// TODO: Font customization functionality
                 if (TTF_Init() == -1)
                 {
                     LOG_ERROR("SDL_ttf could not initialize! SDL_ttf Error: %s\n", TTF_GetError());
@@ -333,7 +341,7 @@ InitializeEngine(game* Game)
                 }
                 else
                 {
-                    Game->Font = TTF_OpenFont("assets/font/lazy.ttf", 28);
+                    Game->Font = TTF_OpenFont("assets/font/AbrilFatface-Regular.ttf", 50);
                     if (Game->Font == NULL)
                     {
                         LOG_ERROR("Failed to load lazy font! SDL_ttf Error: %s\n", TTF_GetError());
@@ -356,16 +364,27 @@ CloseGame(game* Game)
     SDL_Quit();
 }
 
+vec2
+GetRelativeWorldPosition(simple_camera* Camera, real32 NewX, real32 NewY)
+{
+	real32 OffsetX = NewX - (Camera->Width / 2.0f);
+	real32 OffsetY = NewY - (Camera->Height / 2.0f);
+	
+	real32 NewWorldX = Camera->Position.x + (OffsetX / Camera->Zoom);
+    real32 NewWorldY = Camera->Position.y + (OffsetY / Camera->Zoom);
+    
+	return vec(NewWorldX, NewWorldY);
+}
+
 void 
 PanCamera(simple_camera* Camera, real32 NewX, real32 NewY)
 {
-    real32 NewCamPositionX = Camera->Position.x - (NewX / Camera->Zoom);
-    real32 NewCamPositionY = Camera->Position.y - (NewY / Camera->Zoom);
-    
-    Camera->Position = vec(NewCamPositionX, NewCamPositionY);
+	real32 NewCameraPositionX = Camera->Position.x - (NewX / Camera->Zoom);
+    real32 NewCameraPositionY = Camera->Position.y - (NewY / Camera->Zoom);
+	
+    Camera->Position = vec(NewCameraPositionX, NewCameraPositionY);
 }
 
-// TODO: Need to set bounds for zoom
 void 
 ZoomCamera(simple_camera* Camera, real32 ZoomXPos, real32 ZoomYPos, int32 ZoomWeight)
 {
@@ -379,6 +398,10 @@ ZoomCamera(simple_camera* Camera, real32 ZoomXPos, real32 ZoomYPos, int32 ZoomWe
         Camera->Zoom *= 1.1f;
     else
         Camera->Zoom /= 1.1f;
+    
+    // NOTE: Clamp zoom level to the requested bounds
+    if(Camera->Zoom < Camera->MinZoom) Camera->Zoom = Camera->MinZoom;
+    if(Camera->Zoom > Camera->MaxZoom)  Camera->Zoom = Camera->MaxZoom;
     
     Camera->Position.x = WorldXBefore - (OffsetX / Camera->Zoom);
     Camera->Position.y = WorldYBefore - (OffsetY / Camera->Zoom);
@@ -414,17 +437,26 @@ HandleInput(game* Game)
         {
             switch(Game->Event.key.keysym.sym)
             {
-                case SDLK_r:
+                case SDLK_c:
                 {
-					physics_body2D Body = CreateCirclePhysicsBody2D(Game->World, vec(Game->Camera.Position.x, Game->Camera.Position.y), 10.0f, 0.6f, 0.50f, false);
+					int MouseX, MouseY;
+					SDL_GetMouseState(&MouseX, &MouseY);
+					
+					vec2 MousePos = GetRelativeWorldPosition(&Game->Camera, (real32)MouseX, (real32)MouseY); 
+					
+					physics_body2D Body = CreateCirclePhysicsBody2D(Game->World, vec(MousePos.x, MousePos.y), 10.0f, 0.6f, 0.50f, false);
 					
 					Game->World->Bodies.push_back(Body);
                     
 					break;
                 }
                 
-                case SDLK_c:
+                case SDLK_r:
                 {
+					while(Game->World->Bodies.size() > 1)
+					{
+						Game->World->Bodies.pop_back();
+					}
                     break;
                 }
                 
@@ -484,11 +516,13 @@ InitializeGameAndWorld(game* Game, physics_world2D* World)
 	Game->Camera.Height = SCREEN_HEIGHT;
 	Game->Camera.Position.x = SCREEN_WIDTH / 2.0f;
 	Game->Camera.Position.y = SCREEN_HEIGHT / 2.0f;
+	Game->Camera.MaxZoom = 10.0f;
+	Game->Camera.MinZoom = 0.030f;
 	
 	Game->World = World;
 	
 	physics_body2D BottomPlatform = CreateBoxPhysicsBody2D(Game->World,
-														   vec(0.0f, SCREEN_HEIGHT - PADDING_20),
+														   vec(SCREEN_WIDTH / 2.0f, SCREEN_HEIGHT - (PADDING_20 / 2.0f)),
 														   SCREEN_WIDTH,
 														   PADDING_20 + 1.0f,
 														   0.5f,
@@ -499,6 +533,32 @@ InitializeGameAndWorld(game* Game, physics_world2D* World)
 	physics_body2D Player = CreateCirclePhysicsBody2D(Game->World, vec(SCREEN_WIDTH/2, SCREEN_HEIGHT/2), 10.0f, 0.6f, 0.50f, false);
 	
 	Game->World->Bodies.push_back(Player);
+}
+
+void
+DeleteOutofReachPhysicsBodies(game* Game)
+{
+	// NOTE: Delete physics objects if they leave the zoom level 0.030 bounds
+	real32 MaxViewWidth = Game->Camera.Width / Game->Camera.MinZoom;
+	real32 MaxViewHeight = Game->Camera.Height / Game->Camera.MinZoom;
+	real32 BoundLeft = Game->Camera.Position.x - (MaxViewWidth / 2.0f);
+	real32 BoundRight = Game->Camera.Position.x + (MaxViewWidth / 2.0f);
+	real32 BoundTop = Game->Camera.Position.y - (MaxViewHeight / 2.0f);
+	real32 BoundBottom = Game->Camera.Position.y + (MaxViewHeight / 2.0f);
+	
+	for(uint32 i = 0; i < Game->World->Bodies.size();)
+	{
+		if(!Game->World->Bodies[i].IsStatic)
+		{
+			vec2 Pos = Game->World->Bodies[i].Position;
+			if(Pos.x < BoundLeft || Pos.x > BoundRight || Pos.y < BoundTop || Pos.y > BoundBottom)
+			{
+				Game->World->Bodies.erase(Game->World->Bodies.begin() + i);
+				continue;
+			}
+		}
+		i++;
+	}
 }
 
 int
@@ -516,9 +576,6 @@ main(int argc, char* args[])
 		physics_world2D World = {};
 		InitializeGameAndWorld(&Game, &World);
         
-		vec4 Colors[PHYSICS_BODY_COUNT] = {0};
-		GenerateRandomColor(Colors, PHYSICS_BODY_COUNT);
-		
         timer FPSTimer = {};
         TimerStart(&FPSTimer);
         
@@ -539,7 +596,7 @@ main(int argc, char* args[])
             
             HandleInput(&Game);
             
-            if(Game.dx != 0.0f || Game.dy != 0.0f)
+            /*if(Game.dx != 0.0f || Game.dy != 0.0f)
             {            
                 // vec2 Direction = Normalize(vec(Game.dx, Game.dy));
                 // vec2 Velocity = (Direction * Game.Speed);
@@ -554,9 +611,12 @@ main(int argc, char* args[])
                 Game.World->Bodies[1].RotationalVelocity = Game.RotationalVelocity;
             else
                 Game.World->Bodies[1].RotationalVelocity = 0.0f;
-            
+            */
+			
             UpdatePhysicsWorld2d(Game.World, DeltaTimeSeconds);
             
+			DeleteOutofReachPhysicsBodies(&Game);
+			
             ClearRenderer(Game.Renderer, GRAY);
             
             // NOTE: Render all the physics bodies
@@ -582,8 +642,10 @@ main(int argc, char* args[])
                         RenderPhysicsBody(&Game.Camera, Game.Renderer, &Game.World->Bodies[i], 
                                           RED, BLACK);
                     else
-                        RenderPhysicsBody(&Game.Camera, Game.Renderer, &Game.World->Bodies[i], 
-                                          Colors[i], WHITE);
+					{
+						RenderPhysicsBody(&Game.Camera, Game.Renderer, &Game.World->Bodies[i], 
+                                          BLACK, WHITE);
+					}
                 }
             }
             

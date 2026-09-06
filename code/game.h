@@ -70,6 +70,9 @@ typedef struct
     real32 Height;
     
     vec2 Position;
+	
+	real32 MaxZoom;
+	real32 MinZoom;
 }simple_camera;
 
 typedef struct
