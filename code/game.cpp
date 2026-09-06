@@ -568,8 +568,9 @@ DeleteOutofReachPhysicsBodies(game* Game)
 	{
 		if(!Game->World->Bodies[i].IsStatic)
 		{
-			vec2 Pos = Game->World->Bodies[i].Position;
-			if(Pos.x < BoundLeft || Pos.x > BoundRight || Pos.y < BoundTop || Pos.y > BoundBottom)
+			// NOTE: CRAZY ACCESS OF VECTOR ELEMENT!!!
+			AABB aabb = GetAABBFromPhysicsBody(&Game->World->Bodies.data()[i]);
+			if(aabb.Min.x < BoundLeft || aabb.Max.x > BoundRight || aabb.Min.y < BoundTop || aabb.Max.y > BoundBottom)
 			{
 				Game->World->Bodies.erase(Game->World->Bodies.begin() + i);
 				continue;

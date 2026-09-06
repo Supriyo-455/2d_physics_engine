@@ -24,6 +24,7 @@ transform2D
     real32 Cos;
 };
 
+// TODO: Cache AABB information?
 struct
 physics_body2D
 {
@@ -58,6 +59,13 @@ physics_body2D
     
     // NOTE: 2 triangles, each has 3 vertices
     int Triangles[6];
+};
+
+struct
+AABB
+{
+	vec2 Max;
+	vec2 Min;
 };
 
 struct
@@ -265,42 +273,6 @@ vec2 FindPolygonCenter(vec2* Vertices, int VerticesCount)
     return vec(SumX / (real32)VerticesCount, SumY / (real32)VerticesCount);
 }
 
-inline void
-MovePhysicsBody(physics_body2D* Body, real32 ElapsedTime)
-{
-    Body->Position = Body->Position + Body->LinearVelocity * ElapsedTime;
-    Body->TransformUpdateRequired = true;
-}
-
-inline void
-RotatePhysicsBody(physics_body2D* Body, real32 ElapsedTime)
-{
-    Body->Rotation = Body->Rotation + Body->RotationalVelocity * ElapsedTime;
-    Body->TransformUpdateRequired = true;
-}
-
-inline void
-ApplyForce(physics_body2D* Body, real32 ElapsedTime)
-{
-    if (Body->Mass > 0.0f)
-    {
-        vec2 Acceleration = Body->Force * Body->InvMass;
-        Body->LinearVelocity = Body->LinearVelocity + Acceleration * ElapsedTime;
-        Body->TransformUpdateRequired = true;
-    }
-}
-
-inline void
-ApplyGravity(physics_body2D* Body, vec2 Gravity, real32 ForceMultiplier, real32 ElapsedTime)
-{
-    if (Body->Mass > 0.0f)
-    {
-        vec2 Acceleration = Gravity * Body->InvMass * ForceMultiplier;
-        Body->LinearVelocity = Body->LinearVelocity + Acceleration * ElapsedTime;
-        Body->TransformUpdateRequired = true;
-    }
-}
-
 vec2*
 GetPhysicsBodyTransformedVertices(physics_body2D* Body)
 {
@@ -335,7 +307,6 @@ ProjectVertices(vec2* Vertices, int VerticesCount, vec2 Axis, real32* Min, real3
             *Max = Proj;
     }
 }
-
 
 void
 ProjectCircle(vec2 Center, real32 Radius, vec2 Axis, real32* Min, real32* Max)
@@ -376,6 +347,50 @@ FindClosestPointOnPolygon(vec2 CircleCenter, vec2* PolygonVertices, int PolygonV
     return Result;
 }
 
+inline AABB
+GetAABBFromPhysicsBody(physics_body2D* Body)
+{
+	real32 MinX = FLT_MAX;
+	real32 MaxX = FLT_MIN;
+	real32 MinY = FLT_MAX;
+	real32 MaxY = FLT_MIN;
+	
+	AABB Result = {};
+	
+    if(Body->Shape == CIRCLE)
+    {
+		MinX = Body->Position.x - Body->Radius;
+		MinY = Body->Position.y - Body->Radius;
+		
+		MaxX = Body->Position.x + Body->Radius;
+		MaxY = Body->Position.y + Body->Radius;
+    }
+    else if(Body->Shape == BOX)
+    {
+		vec2* PolygonVerts = GetPhysicsBodyTransformedVertices(Body);
+		int PolygonVertsCount = ARRAY_COUNT(Body->Vertices);
+		
+		for(int i=0; i<PolygonVertsCount; i++)
+		{
+			vec2 V = PolygonVerts[i];
+			
+			if(V.x < MinX) MinX = V.x;
+			if(V.x > MaxX) MaxX = V.x;
+			
+			if(V.y < MinY) MinY = V.y;
+			if(V.y > MaxY) MaxY = V.y;
+		}
+    }
+	else
+	{
+		LOG_ERROR("unknown shaped physics body!");
+	}
+	
+	Result.Min = vec(MinX, MinY);
+	Result.Max = vec(MaxX, MaxY);
+    
+    return Result;
+}
 
 bool32
 IntersectCircles(vec2 CenterA, real32 RadiusA, 
@@ -622,6 +637,42 @@ ResolveCollision(physics_body2D* A, physics_body2D* B, vec2 OutNormal)
     vec2 Impulse = OutNormal * j;
     A->LinearVelocity = A->LinearVelocity - Impulse * A->InvMass;
     B->LinearVelocity = B->LinearVelocity + Impulse * B->InvMass;
+}
+
+inline void
+MovePhysicsBody(physics_body2D* Body, real32 ElapsedTime)
+{
+    Body->Position = Body->Position + Body->LinearVelocity * ElapsedTime;
+    Body->TransformUpdateRequired = true;
+}
+
+inline void
+RotatePhysicsBody(physics_body2D* Body, real32 ElapsedTime)
+{
+    Body->Rotation = Body->Rotation + Body->RotationalVelocity * ElapsedTime;
+    Body->TransformUpdateRequired = true;
+}
+
+inline void
+ApplyForce(physics_body2D* Body, real32 ElapsedTime)
+{
+    if (Body->Mass > 0.0f)
+    {
+        vec2 Acceleration = Body->Force * Body->InvMass;
+        Body->LinearVelocity = Body->LinearVelocity + Acceleration * ElapsedTime;
+        Body->TransformUpdateRequired = true;
+    }
+}
+
+inline void
+ApplyGravity(physics_body2D* Body, vec2 Gravity, real32 ForceMultiplier, real32 ElapsedTime)
+{
+    if (Body->Mass > 0.0f)
+    {
+        vec2 Acceleration = Gravity * Body->InvMass * ForceMultiplier;
+        Body->LinearVelocity = Body->LinearVelocity + Acceleration * ElapsedTime;
+        Body->TransformUpdateRequired = true;
+    }
 }
 
 void
