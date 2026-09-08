@@ -27,10 +27,10 @@ SDL_Color ConvertToSDLColor(vec4 Color)
 // TODO: Need to replace this cpu based calls with Opengl
 // TODO: Generalize texture
 // TODO: Texture Scalling is not optimized
-void RenderTextFromCenter(int XPos,
+void RenderTextFromCenter(SDL_Renderer* Renderer,
+						  int XPos,
                           int YPos,
                           const char* TextureText,
-                          SDL_Renderer* Renderer,
                           TTF_Font* Font,
                           vec4 TextColor,
                           int FontSize = 25,
@@ -199,7 +199,11 @@ RenderFilledCircle(SDL_Renderer* Renderer, int32 CX, int32 CY, int32 Radius, vec
 }
 
 void
-RenderPhysicsBody(simple_camera* Camera, SDL_Renderer* Renderer, physics_body2D* Body, vec4 FillColor, vec4 BorderColor)
+RenderPhysicsBody(SDL_Renderer* Renderer, 
+				  physics_body2D* Body, 
+				  simple_camera* Camera, 
+				  vec4 FillColor, 
+				  vec4 BorderColor)
 {
     switch(Body->Shape)
     {
@@ -213,7 +217,7 @@ RenderPhysicsBody(simple_camera* Camera, SDL_Renderer* Renderer, physics_body2D*
             RenderFilledCircle(Renderer, X, Y, Radius, FillColor);
             
             if(Body->IsCollided)
-                BorderColor = vec(1.0f, 0.0f, 0.0f, 1.0f);
+                BorderColor = RED;
             
             RenderHollowCircle(Renderer, X, Y, Radius, BorderColor);
             
@@ -249,7 +253,7 @@ RenderPhysicsBody(simple_camera* Camera, SDL_Renderer* Renderer, physics_body2D*
             
             
             if(Body->IsCollided)
-                BorderColor = vec(1.0f, 0.0f, 0.0f, 1.0f);
+                BorderColor = RED;
             
             SDL_Color Border = ConvertToSDLColor(BorderColor);
             SDL_SetRenderDrawColor(Renderer, Border.r, Border.g, Border.b, Border.a);
@@ -446,6 +450,7 @@ HandleInput(game* Game)
         {
             switch(Game->Event.key.keysym.sym)
             {
+				// TODO: Generate physics body with random size and color?
                 case SDLK_c:
                 {
 					int MouseX, MouseY;
@@ -453,7 +458,7 @@ HandleInput(game* Game)
 					
 					vec2 MousePos = GetRelativeWorldPosition(&Game->Camera, (real32)MouseX, (real32)MouseY); 
 					
-					physics_body2D Body = CreateCirclePhysicsBody2D(Game->World, vec(MousePos.x, MousePos.y), 10.0f, 0.6f, 0.50f, false);
+					physics_body2D Body = CreateCirclePhysicsBody2D(Game->World, vec(MousePos.x, MousePos.y), 10.0f, 0.6f, 0.90f, false);
 					
 					Game->World->Bodies.push_back(Body);
                     
@@ -467,7 +472,7 @@ HandleInput(game* Game)
 					
 					vec2 MousePos = GetRelativeWorldPosition(&Game->Camera, (real32)MouseX, (real32)MouseY); 
 					
-					physics_body2D Body = CreateBoxPhysicsBody2D(Game->World, vec(MousePos.x, MousePos.y), 20.0f, 20.0f, 0.6f, 0.50f, false);
+					physics_body2D Body = CreateBoxPhysicsBody2D(Game->World, vec(MousePos.x, MousePos.y), 20.0f, 20.0f, 0.6f, 0.60f, false);
 					
 					Game->World->Bodies.push_back(Body);
                     
@@ -535,7 +540,7 @@ InitializeGameAndWorld(game* Game, physics_world2D* World)
 	Game->Camera.Position.x = SCREEN_WIDTH / 2.0f;
 	Game->Camera.Position.y = SCREEN_HEIGHT / 2.0f;
 	Game->Camera.MaxZoom = 10.0f;
-	Game->Camera.MinZoom = 0.030f;
+	Game->Camera.MinZoom = 0.30f;
 	
 	Game->World = World;
 	
@@ -595,23 +600,13 @@ main(int argc, char* args[])
 		physics_world2D World = {};
 		InitializeGameAndWorld(&Game, &World);
         
-        timer FPSTimer = {};
-        TimerStart(&FPSTimer);
-        
-        // TODO: Compress this into the fps timer struct
-        uint32 LastFrameTicks = TimerGetTicks(&FPSTimer);
-        uint32 CurrentFrameTicks = TimerGetTicks(&FPSTimer);
-        uint32 DeltaTicks = CurrentFrameTicks - LastFrameTicks;
-        real32 DeltaTimeSeconds = DeltaTicks / 1000.0f;
-        real32 CurrentFrameTicksSeconds = CurrentFrameTicks / 1000.0f;
-        
+        fpsTimer FPSTimer = {};
+		FPSTimerInit(&FPSTimer);
+		
         while(Game.Running)
         {
             // TODO: Compress this into the fps timer struct
-            CurrentFrameTicks = TimerGetTicks(&FPSTimer);
-            DeltaTicks = CurrentFrameTicks - LastFrameTicks;
-            LastFrameTicks = CurrentFrameTicks;
-            DeltaTimeSeconds = DeltaTicks / 1000.0f;
+            FPSTimerUpdate(&FPSTimer);
             
             HandleInput(&Game);
             
@@ -632,7 +627,7 @@ main(int argc, char* args[])
                 Game.World->Bodies[1].RotationalVelocity = 0.0f;
             */
 			
-            UpdatePhysicsWorld2d(Game.World, DeltaTimeSeconds);
+            UpdatePhysicsWorld2d(Game.World, (real32)(FPSTimer.DeltaTicks / 1000.0f), 20);
             
 			DeleteOutofReachPhysicsBodies(&Game);
 			
@@ -658,24 +653,40 @@ main(int argc, char* args[])
                              Width, Height, &Game.Camera))
                 {
                     if(Game.World->Bodies[i].IsStatic)
-                        RenderPhysicsBody(&Game.Camera, Game.Renderer, &Game.World->Bodies[i], 
+                        RenderPhysicsBody(Game.Renderer, 
+										  &Game.World->Bodies[i], 
+										  &Game.Camera, 
                                           RED, BLACK);
                     else
 					{
-						RenderPhysicsBody(&Game.Camera, Game.Renderer, &Game.World->Bodies[i], 
+						RenderPhysicsBody(Game.Renderer, 
+										  &Game.World->Bodies[i], 
+										  &Game.Camera, 
                                           BLACK, WHITE);
 					}
                 }
             }
+			
+			for(int i=0; i<Game.World->ContactPoints.size(); i++)
+			{
+				vec2 ContactPoint = Game.World->ContactPoints.data()[i];
+				uint32 X = RoundReal32ToUint32((ContactPoint.x - Game.Camera.Position.x) * Game.Camera.Zoom + (Game.Camera.Width / 2.0f));
+				uint32 Y = RoundReal32ToUint32((ContactPoint.y - Game.Camera.Position.y) * Game.Camera.Zoom + (Game.Camera.Height / 2.0f));
+				
+				uint32 Radius = RoundReal32ToUint32(2.0f * Game.Camera.Zoom);
+				
+				RenderFilledCircle(Game.Renderer, X, Y, Radius, RED);
+			}
+			
             
             // NOTE: Camera Info display
             {
                 char buf[256] = {};
                 sprintf_s(buf, "CamX: %0.3f, CamY: %0.3f, Zoom: %0.3f", Game.Camera.Position.x, Game.Camera.Position.y, Game.Camera.Zoom);
-                RenderTextFromCenter(SCREEN_WIDTH / 2,
+                RenderTextFromCenter(Game.Renderer,
+									 SCREEN_WIDTH / 2,
                                      PADDING_20,
                                      buf,
-                                     Game.Renderer,
                                      Game.Font,
                                      WHITE,
 									 40);
@@ -684,18 +695,12 @@ main(int argc, char* args[])
             
             // NOTE: FPS Display
             {
-                uint32 FPS = 0;
-                if (DeltaTicks > 0)
-                {
-                    FPS = 1000 / DeltaTicks;
-                }
-                
                 char buf[256] = {};
-                sprintf_s(buf, "FPS: %d, Total Physics Bodies: %ld", FPS, Game.World->Bodies.size());
-                RenderTextFromCenter(SCREEN_WIDTH / 2,
+                sprintf_s(buf, "FPS: %d, Total Physics Bodies: %ld", GetFPS(&FPSTimer), Game.World->Bodies.size());
+                RenderTextFromCenter(Game.Renderer,
+									 SCREEN_WIDTH / 2,
                                      SCREEN_HEIGHT - PADDING_20,
                                      buf,
-                                     Game.Renderer,
                                      Game.Font,
                                      WHITE,
 									 40);

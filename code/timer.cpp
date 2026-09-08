@@ -63,3 +63,34 @@ TimerGetTicks(timer* Timer)
     
     return Time;
 }
+
+void 
+FPSTimerInit(fpsTimer* FPSTimer)
+{
+	FPSTimer->Timer = {};
+	TimerStart(&FPSTimer->Timer);
+	
+	// TODO: Compress this into the fps timer struct
+	FPSTimer->LastFrameTicks = TimerGetTicks(&FPSTimer->Timer);
+	FPSTimer->CurrentFrameTicks = TimerGetTicks(&FPSTimer->Timer);
+	FPSTimer->DeltaTicks = FPSTimer->CurrentFrameTicks - FPSTimer->LastFrameTicks;
+}
+
+void
+FPSTimerUpdate(fpsTimer* FPSTimer)
+{
+	FPSTimer->CurrentFrameTicks = TimerGetTicks(&FPSTimer->Timer);
+	FPSTimer->DeltaTicks = FPSTimer->CurrentFrameTicks - FPSTimer->LastFrameTicks;
+	FPSTimer->LastFrameTicks = FPSTimer->CurrentFrameTicks;
+}
+
+uint32
+GetFPS(fpsTimer* FPSTimer)
+{
+	uint32 FPS = 0;
+	if (FPSTimer->DeltaTicks > 0)
+	{
+		FPS = 1000 / FPSTimer->DeltaTicks;
+	}
+	return FPS;
+}

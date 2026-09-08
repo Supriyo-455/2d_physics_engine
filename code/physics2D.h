@@ -69,11 +69,29 @@ AABB
 };
 
 struct
+collision_manifold
+{
+	physics_body2D* BodyA;
+	physics_body2D* BodyB;
+	vec2 OutNormal;
+	real32 OutDepth;
+	vec2 Contact1;
+	vec2 Contact2;
+	uint32 ContactCount;
+};
+
+struct
 physics_world2D
 {
 	std::vector<physics_body2D> Bodies;
-	inline local_persist const real32 ForceMultiplier = 1000.0f;
+	std::vector<collision_manifold> CollisionManifolds;
+	std::vector<vec2> ContactPoints;
+	
+	inline local_persist const real32 ForceMultiplier = 1000000.0f;
     
+	inline local_persist const int MaxIteration = 128;
+	inline local_persist const int MinIteration = 1;
+	
     // NOTE: Gravity unit - meter/sec^2
     inline local_persist const vec2 Gravity = vec(0.0f, 9.81f);
     
@@ -85,6 +103,28 @@ physics_world2D
     inline local_persist const real32 MinDensity = 0.5f;
     inline local_persist const real32 MaxDensity = 21.4f;
 };
+
+collision_manifold
+CreateCollisionManifold(physics_body2D* A, 
+						physics_body2D* B, 
+						vec2 OutNormal, 
+						real32 OutDepth, 
+						vec2 Contact1, 
+						vec2 Contact2, 
+						uint32 ContactCount)
+{
+	collision_manifold CollisionManifold = {};
+	
+	CollisionManifold.BodyA = A;
+	CollisionManifold.BodyB = B;
+	CollisionManifold.OutNormal = OutNormal;
+	CollisionManifold.OutDepth = OutDepth;
+	CollisionManifold.Contact1 = Contact1;
+	CollisionManifold.Contact2 = Contact2;
+	CollisionManifold.ContactCount = ContactCount;
+	
+	return CollisionManifold;
+}
 
 transform2D
 CreateTransform2D(vec2 Pos, real32 Angle)
@@ -581,8 +621,48 @@ IntersectCircleAndPolygon(physics_body2D* Circle, physics_body2D* Polygon,
     return true;
 }
 
+void
+FindContactPointsCircles(vec2 CenterA, 
+						 real32 RadiusA, 
+						 vec2 CenterB, 
+						 real32 RadiusB, 
+						 vec2* ContactPoint)
+{
+	vec2 A2B = CenterB - CenterA;
+	vec2 Direction = Normalize(A2B);
+	*ContactPoint = CenterA + Direction * RadiusA;
+}
 
-inline bool32
+void
+FindContactPoints(physics_body2D* BodyA, physics_body2D* BodyB, 
+				  vec2* Contact1, vec2* Contact2, uint32* ContactPoints)
+{
+	*Contact1 = vec(0.0f, 0.0f);
+	*Contact2 = vec(0.0f, 0.0f);
+	*ContactPoints = 0;
+	
+	if(BodyA->Shape == CIRCLE && BodyB->Shape == CIRCLE)
+    {
+		FindContactPointsCircles(BodyA->Position, BodyA->Radius, 
+								 BodyB->Position, BodyB->Radius, 
+								 Contact1);
+		*ContactPoints = 1;
+	}
+    else if(BodyA->Shape == BOX && BodyB->Shape == BOX)
+    {}
+    else
+    {
+        // NOTE: Either one of them is box and circle
+        // NOTE: Always pass the circle body in the first parameter
+        
+        if(BodyA->Shape == CIRCLE)
+        {}
+        else
+        {}
+    }
+}
+
+bool32
 CheckCollision2D(physics_body2D* A, physics_body2D* B, vec2* OutNormal, real32* OutDepth)
 {
     bool32 Result = false;
@@ -620,8 +700,12 @@ CheckCollision2D(physics_body2D* A, physics_body2D* B, vec2* OutNormal, real32* 
 }
 
 void
-ResolveCollision(physics_body2D* A, physics_body2D* B, vec2 OutNormal)
+ResolveCollision(collision_manifold* CollisionManifold)
 {
+	physics_body2D* A = CollisionManifold->BodyA;
+	physics_body2D* B = CollisionManifold->BodyB;
+	vec2 OutNormal = CollisionManifold->OutNormal;
+	
     vec2 RelativeVelocity = B->LinearVelocity - A->LinearVelocity;
     real32 e = MIN(A->Restitution, B->Restitution);
     
@@ -637,6 +721,9 @@ ResolveCollision(physics_body2D* A, physics_body2D* B, vec2 OutNormal)
     vec2 Impulse = OutNormal * j;
     A->LinearVelocity = A->LinearVelocity - Impulse * A->InvMass;
     B->LinearVelocity = B->LinearVelocity + Impulse * B->InvMass;
+	
+	A->TransformUpdateRequired = true;
+	B->TransformUpdateRequired = true;
 }
 
 inline void
@@ -676,69 +763,111 @@ ApplyGravity(physics_body2D* Body, vec2 Gravity, real32 ForceMultiplier, real32 
 }
 
 void
-UpdatePhysicsWorld2d(physics_world2D* World, real32 ElapsedTime)
+UpdatePhysicsWorld2d(physics_world2D* World, real32 ElapsedTime, int Iterations)
 {
-    // NOTE: Movement step
-    for(int i=0; i<World->Bodies.size(); i++)
-    {
-		ApplyGravity(&World->Bodies[i], World->Gravity, World->ForceMultiplier, ElapsedTime);
-        ApplyForce(&World->Bodies[i], ElapsedTime);
-        RotatePhysicsBody(&World->Bodies[i], ElapsedTime);
-        MovePhysicsBody(&World->Bodies[i], ElapsedTime);
-        
-        // NOTE: Reset the force to zero
-        World->Bodies[i].Force = vec(0.0f, 0.0f);
-    }
-    
-    // NOTE: Reset collision state
-    for(int i=0; i<World->Bodies.size(); i++)
-    {
-        World->Bodies[i].IsCollided = false;
-    }
-    
-    // NOTE: Collide step
-    for(int i=0; i<World->Bodies.size()-1; i++)
-    {
-        physics_body2D* BodyA = &World->Bodies[i];
-        
-        for(int j=i+1; j<World->Bodies.size(); j++)
-        {
-            physics_body2D* BodyB = &World->Bodies[j];
-            
-            if(BodyA->IsStatic && BodyB->IsStatic)
-            {
-                continue;
-            }
-            
-            vec2 OutNormal = vec(0.0f, 0.0f);
-            real32 OutDepth = 0.0f;
-            if(CheckCollision2D(BodyA, BodyB, &OutNormal, &OutDepth))
-            {
-                BodyA->IsCollided = true;
-                BodyB->IsCollided = true;
-                
-                // NOTE: Compress this code
-                if(BodyA->IsStatic)
-                {
-                    BodyB->Position = BodyB->Position + OutNormal * (OutDepth);
-                }
-                else if(BodyB->IsStatic)
-                {
-                    BodyA->Position = BodyA->Position - OutNormal * (OutDepth);
-                }
-                else
-                {
-                    BodyA->Position = BodyA->Position - (OutNormal * (OutDepth / 2.0f));
-                    BodyB->Position = BodyB->Position + OutNormal * (OutDepth / 2.0f);
-                }
-                
-                ResolveCollision(BodyA, BodyB, OutNormal);
-                
-                BodyA->TransformUpdateRequired = true;
-                BodyB->TransformUpdateRequired = true;
-            }
-        }
-    }
+	Iterations = Clamp(Iterations, World->MinIteration, World->MaxIteration);
+	
+	World->ContactPoints.clear();
+	
+	for(int it=1; it<Iterations; it++)
+	{
+		ElapsedTime /= Iterations;
+		
+		// NOTE: Movement step
+		for(int i=0; i<World->Bodies.size(); i++)
+		{
+			ApplyGravity(&World->Bodies[i],
+						 World->Gravity, 
+						 World->ForceMultiplier, 
+						 ElapsedTime);
+			
+			ApplyForce(&World->Bodies[i], ElapsedTime);
+			RotatePhysicsBody(&World->Bodies[i], ElapsedTime);
+			MovePhysicsBody(&World->Bodies[i], ElapsedTime);
+			
+			// NOTE: Reset the force to zero
+			World->Bodies[i].Force = vec(0.0f, 0.0f);
+		}
+		
+		// NOTE: Reset collision state
+		for(int i=0; i<World->Bodies.size(); i++)
+		{
+			World->Bodies[i].IsCollided = false;
+		}
+		
+		World->CollisionManifolds.clear();
+		
+		// NOTE: Collide step
+		for(int i=0; i<World->Bodies.size()-1; i++)
+		{
+			physics_body2D* BodyA = &World->Bodies[i];
+			
+			for(int j=i+1; j<World->Bodies.size(); j++)
+			{
+				physics_body2D* BodyB = &World->Bodies[j];
+				
+				if(BodyA->IsStatic && BodyB->IsStatic)
+				{
+					continue;
+				}
+				
+				vec2 OutNormal = vec(0.0f, 0.0f);
+				real32 OutDepth = 0.0f;
+				
+				vec2 Contact1 = vec(0.0f, 0.0f);
+				vec2 Contact2 = vec(0.0f, 0.0f);
+				uint32 ContactPoints;
+				
+				if(CheckCollision2D(BodyA, BodyB, &OutNormal, &OutDepth))
+				{
+					BodyA->IsCollided = true;
+					BodyB->IsCollided = true;
+					
+					// NOTE: Compress this code
+					if(BodyA->IsStatic)
+					{
+						BodyB->Position = BodyB->Position + OutNormal * (OutDepth);
+					}
+					else if(BodyB->IsStatic)
+					{
+						BodyA->Position = BodyA->Position - OutNormal * (OutDepth);
+					}
+					else
+					{
+						BodyA->Position = BodyA->Position - (OutNormal * (OutDepth));
+						BodyB->Position = BodyB->Position + OutNormal * (OutDepth);
+					}
+					
+					FindContactPoints(BodyA, BodyB, &Contact1, &Contact2, &ContactPoints);
+					
+					collision_manifold CollisionManifold = 
+						CreateCollisionManifold(BodyA, 
+												BodyB, 
+												OutNormal, 
+												OutDepth, 
+												Contact1, 
+												Contact2,
+												ContactPoints);
+					
+					World->CollisionManifolds.push_back(CollisionManifold);
+				}
+			}
+			
+			for(int i=0; i<World->CollisionManifolds.size(); i++)
+			{
+				collision_manifold CollisionManifold = World->CollisionManifolds.data()[i];
+				ResolveCollision(&CollisionManifold);
+				
+				if(CollisionManifold.ContactCount > 0)
+				{
+					World->ContactPoints.push_back(CollisionManifold.Contact1);
+					
+					if(CollisionManifold.ContactCount > 1)
+						World->ContactPoints.push_back(CollisionManifold.Contact2);
+				}
+			}
+		}
+	}
 }
 
 #endif //PHYSICS2_D_H

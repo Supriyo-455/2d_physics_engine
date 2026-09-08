@@ -5,13 +5,22 @@
 
 #include "defines.h"
 
-typedef struct
+struct timer
 {
     uint32 StartTicks;
     uint32 PausedTicks;
-    
+	
     bool32 Paused;
     bool32 Started;
-}timer;
+};
+
+struct fpsTimer
+{
+	timer Timer;
+	
+	uint32 LastFrameTicks;
+	uint32 CurrentFrameTicks;
+	uint32 DeltaTicks;
+};
 
 #endif //TIMER_H

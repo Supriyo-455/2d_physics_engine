@@ -3,16 +3,8 @@
 #ifndef PRECISION_H
 #define PRECISION_H
 
-#define real_sqrt sqrtf
+#include <math.h>
 
-namespace Cyclone
-{
-    /**
-* Defines a real number precision. Cyclone can be compiled in
-* single- or double-precision versions. By default single precision
-* is provided.
-*/
-    typedef float real;
-}
+typedef float real;
 
 #endif //PRECISION_H
