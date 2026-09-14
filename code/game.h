@@ -3,7 +3,7 @@
 
 #include "defines.h"
 #include "simple_math.h"
-#include "physics2D.h"
+#include "physics_2d.h"
 
 #define SCREEN_WIDTH 800
 #define SCREEN_HEIGHT 800

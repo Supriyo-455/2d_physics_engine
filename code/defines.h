@@ -12,8 +12,15 @@
 #include <float.h>
 #include <stdlib.h>
 
+#ifdef _MSC_VER
+#include <intrin.h>
+#else
+#include <x86intrin.h>
+#endif
+
 #ifndef _MSC_VER
 #define sprintf_s(buf, ...) snprintf(buf, sizeof(buf), __VA_ARGS__)
+#define __rdtsc() _rdtsc()
 #endif
 
 // TODO: Need to use Opengl in future

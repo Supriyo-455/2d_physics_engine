@@ -1,75 +1,50 @@
 #!/usr/bin/env bash
 set -e
 
-# ================================
-# PROJECT DEFINES
-# ================================
 EXE_NAME="Game"
-code_path="../code/"
-third_party_path="../third_party/"
-source_assets="../assets/"
+CODE_PATH="code/"
+LIBS_PATH="third_party/"
+ASSETS_PATH="assets/"
 
-# ================================
 # COMPILER FLAGS
-# ================================
-# Equivalent MSVC flags:
-# -std:c++20 -> -std=c++20
-# -Od        -> -O0
-# -GR-       -> -fno-rtti
-# -EHa-      -> -fno-exceptions
-# -W4 -WX    -> -Wall -Wextra -Werror
-compiler="-std=c++20 -O0 -fno-rtti -fno-exceptions -Wall -Wextra -Werror -mrdseed"
+CXXFLAGS=(
+    "-std=c++20"                      # Target the C++20 standard
+    "-O0"                             # Disable optimization for faster builds and better debugging
+    "-fno-diagnostics-show-caret"     # Force single-line errors so 4coder can parse them natively
+    "-fno-rtti"                       # Disable Run-Time Type Info (reduces overhead if not using dynamic_cast)
+    "-fno-exceptions"                 # Disable C++ exceptions to enforce explicit error handling
+	"-fno-show-column"                # Strips column output for strict 4coder parsing
+    "-Wall"                           # Enable standard compiler warnings
+    "-Wextra"                         # Enable extended compiler warnings
+    "-Werror"                         # Treat warnings as errors to enforce clean code
+    "-mrdseed"                        # Enable x86 RDSEED hardware instructions for random number generation
+    "-Wno-unused-parameter"           # Suppress warnings for unused function arguments
+    "-Wno-unused-variable"            # Suppress warnings for unused local variables
+    "-Wno-unused-function"            # Suppress warnings for unused internal functions
+    "-Wno-missing-field-initializers" # Suppress warnings for partial struct initialization
+    "-Wno-sign-compare"               # Suppress warnings when comparing signed and unsigned integers
+    "-I${LIBS_PATH}include"           # Add third-party include directory to search path
+    "-g3"                             # Generate maximum debug information for GDB
+    "-DENGINE_DEBUG=1"                # Define the ENGINE_DEBUG preprocessor macro
+)
 
-# IGNORE WARNINGS
-# (Equivalent to -wd4201, -wd4100, -wd4189, etc.)
-compiler="$compiler -Wno-unused-parameter -Wno-unused-variable -Wno-unused-function -Wno-missing-field-initializers -Wno-sign-compare"
-
-# INCLUDE PATHS
-compiler="$compiler -I${third_party_path}include"
-
-# ================================
-# DEBUG & DEFINES
-# ================================
-debug="-g3"
-defines="-DENGINE_DEBUG=1"
-
-# ================================
-# LIBRARIES
-# ================================
-# Replaced Windows APIs with POSIX equivalents (-ldl, -lpthread, -lGL)
-linux_libs="-lpthread -ldl -lGL"
-sdl_libs="-lSDL2 -lSDL2_ttf -lSDL2_image"
-
-# ================================
 # LINKER FLAGS
-# ================================
-link="-Wl,--gc-sections -L${third_party_path}lib"
+LDFLAGS=(
+    "-Wl,--gc-sections"               # Instruct linker to strip out unused code and data sections
+    "-L${LIBS_PATH}lib"               # Add third-party library directory to search path
+    "-lpthread"                       # Link POSIX threading library
+    "-ldl"                            # Link dynamic loader (required for dlopen/dlsym)
+    "-lGL"                            # Link OpenGL library
+    "-lSDL2"                          # Link core SDL2 library
+    "-lSDL2_ttf"                      # Link SDL2 TrueType font extension
+    "-lSDL2_image"                    # Link SDL2 image loading extension
+)
 
-# ================================
-# BUILD DIR
-# ================================
-mkdir -p ./build
-pushd ./build > /dev/null
+mkdir -p build/assets
 
-# Copy shared libraries (.so instead of .dll)
-if [ -d "${third_party_path}lib" ]; then
-    cp -u "${third_party_path}lib"/*.so . 2>/dev/null || true
-fi
+# Copy files directly into build/ without changing the working directory
+cp -u "${LIBS_PATH}lib"/*.so build/ 2>/dev/null || true
+cp -ru "${ASSETS_PATH}"* build/assets/ 2>/dev/null || true
+rm -f build/*.o
 
-# Copy assets
-if [ -d "${source_assets}" ]; then
-    mkdir -p ./assets
-    cp -ru "${source_assets}"* ./assets/ 2>/dev/null || true
-fi
-
-# Clean previous build artifacts
-rm -f *.o
-
-# ================================
-# BUILD EXECUTABLE
-# ================================
-g++ $compiler $defines $debug "${code_path}game.cpp" \
-    $link $sdl_libs $linux_libs \
-    -o "$EXE_NAME"
-
-popd > /dev/null
+g++ "${CXXFLAGS[@]}" "${CODE_PATH}game.cpp" "${LDFLAGS[@]}" -o "build/$EXE_NAME"

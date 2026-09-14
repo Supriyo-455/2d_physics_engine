@@ -14,7 +14,7 @@ The core simulation pipeline is built to handle rigid body dynamics with physica
 The engine relies on a custom mathematics header (`simple_math.h`) using primitives like `vec2`, `transform2D`, and intrinsic random number generation (`_rdseed32_step`).
 
 To prevent physics destabilization, the world enforces strict physical constraints:
-*   **Body Area**: Minimum of `0.0001 m²` to a maximum of `4096 m²`.
+*   **Body Area**: Minimum of `0.0001 m²` to a maximum of 1000000 m²`.
 *   **Density**: Bounded between `0.5 g/cm³` and `21.4 g/cm³` to mimic real-world materials (e.g., wood to platinum).
 *   **Gravity**: Defaults to Earth's `-9.81 m/s²`.
 

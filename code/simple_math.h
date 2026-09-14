@@ -633,7 +633,6 @@ inline real32 LinearTosRGB(real32 L)
 
 // TODO: Research more on random numbers and different types of noise functions
 #include<immintrin.h>
-
 // TODO: These function will only work on x86 processors, need to add support for ARM in future
 bool32 GetRealRandomNumber(uint32* Result)
 {
