@@ -7,7 +7,7 @@ A lightweight, high-performance 2D physics engine developed from scratch in C++2
 ### Physics Pipeline
 The core simulation pipeline is built to handle rigid body dynamics with physical realism:
 1.  **Integration**: Semi-implicit Euler integration handles linear and rotational velocities, applying forces (like gravity and custom impulses) over fixed time steps.
-2.  **Collision Detection**: Utilizes the **Separating Axis Theorem (SAT)**. The engine can accurately detect intersections between diverse primitive shapes (Circle-Circle, Box-Box, and Circle-Box).
+2.  **Collision Detection**: Utilizes the **Axis Aligned Bounding Box (AABB)****Separating Axis Theorem (SAT)**. The engine can accurately detect intersections between diverse primitive shapes (Circle-Circle, Box-Box, and Circle-Box).
 3.  **Collision Resolution**: Resolves intersections by calculating the penetration depth and normal, then applying positional correction and impulse-based velocity resolution factoring in `Restitution` (bounciness) and `Mass`.
 
 ### Data Structures & Constraints
