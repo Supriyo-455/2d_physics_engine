@@ -195,7 +195,7 @@ ProjectCircle(vec2 Center, real32 Radius, vec2 Axis, real32* Min, real32* Max)
 }
 
 int
-FindClosestPointOnPolygon(vec2 CircleCenter, vec2* PolygonVertices, int PolygonVerticesCount)
+FindClosestVertexOnPolygon(vec2 CircleCenter, vec2* PolygonVertices, int PolygonVerticesCount)
 {
     int Result = -1;
     real32 MinDistance = FLT_MAX;
@@ -213,47 +213,6 @@ FindClosestPointOnPolygon(vec2 CircleCenter, vec2* PolygonVertices, int PolygonV
     }
     
     return Result;
-}
-
-void
-FindContactPointsCircles(vec2 CenterA, 
-						 real32 RadiusA, 
-						 vec2 CenterB, 
-						 real32 RadiusB, 
-						 vec2* ContactPoint)
-{
-	vec2 A2B = CenterB - CenterA;
-	vec2 Direction = Normalize(A2B);
-	*ContactPoint = CenterA + Direction * RadiusA;
-}
-
-void
-FindContactPoints(physics_body2D* BodyA, physics_body2D* BodyB, 
-				  vec2* Contact1, vec2* Contact2, uint32* ContactPoints)
-{
-	*Contact1 = vec(0.0f, 0.0f);
-	*Contact2 = vec(0.0f, 0.0f);
-	*ContactPoints = 0;
-	
-	if(BodyA->Shape == CIRCLE && BodyB->Shape == CIRCLE)
-    {
-		FindContactPointsCircles(BodyA->Position, BodyA->Radius, 
-								 BodyB->Position, BodyB->Radius, 
-								 Contact1);
-		*ContactPoints = 1;
-	}
-    else if(BodyA->Shape == BOX && BodyB->Shape == BOX)
-    {}
-    else
-    {
-        // NOTE: Either one of them is box and circle
-        // NOTE: Always pass the circle body in the first parameter
-        
-        if(BodyA->Shape == CIRCLE)
-        {}
-        else
-        {}
-    }
 }
 
 inline void

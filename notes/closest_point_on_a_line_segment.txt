@@ -1,0 +1,23 @@
+How to find closest point on a line segment
+
+
+Consider, line A to B; and outside random point P
+
+A *-----------------* B
+
+
+			*P
+
+
+Basic Algorithm
+
+V(x) -> Vector x
+. -> Dot product
+|| -> Modulus
+^x -> to the power x
+
+1. V(AB) = V(B) - V(A)
+2. V(AP) = V(P) - V(A)
+3. Proj = V(AB).V(AP)
+4. AB_Length_Squared = |V(AB)|^2
+5. D = Proj / AB_Length_Squared

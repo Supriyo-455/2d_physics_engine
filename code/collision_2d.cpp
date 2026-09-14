@@ -66,6 +66,145 @@ GetAABBFromPhysicsBody(physics_body2D* Body)
 }
 
 bool32
+IntersectAABBs(AABB BodyA_AABB, AABB BodyB_AABB)
+{
+	bool32 Collided = true;
+	
+	if(BodyB_AABB.Max.x <= BodyA_AABB.Min.x || 
+	   BodyA_AABB.Max.x <= BodyB_AABB.Min.x ||
+	   BodyB_AABB.Max.y <= BodyA_AABB.Min.y ||
+	   BodyA_AABB.Max.y <= BodyB_AABB.Min.y)
+	{
+		Collided = false;
+	}
+	
+	return Collided;
+}
+
+void
+FindClosestPointAndMinDistanceFromALineSegment(vec2 LineSegA, 
+											   vec2 LineSegB, 
+											   vec2 P,
+											   real32* MinDistance,
+											   vec2* ClosestPoint)
+{
+	vec2 AB = LineSegB - LineSegA;
+	vec2 AP = P - LineSegA;
+	
+	real32 DistSq = Dot(AB, AB);
+	real32 Proj = Dot(AB, AP);
+	
+	real32 D = Proj / DistSq;
+	
+	if(D <= 0.0f)
+	{
+		*ClosestPoint = LineSegA;
+	}
+	else if(D >= 1.0f)
+	{
+		*ClosestPoint = LineSegB;
+	}
+	else
+	{
+		*ClosestPoint = LineSegA + AB * D;
+	}
+	
+	*MinDistance = DistanceSquared(P, *ClosestPoint);
+}
+
+void
+FindContactPointsCircleAndPolygon(vec2 CircleCenter, 
+								  real32 CircleRadius, 
+								  vec2 PolygonCenter, 
+								  vec2* PolygonVertices, 
+								  int PolygonVerticesCount,
+								  vec2* ContactPoint)
+{
+	real32 MinDistance = FLT_MAX;
+    for(int i=0; i<PolygonVerticesCount; i++)
+    {
+        vec2 Va = PolygonVertices[i];
+		vec2 Vb = PolygonVertices[(i+1) % PolygonVerticesCount];
+		
+		real32 Distance;
+		vec2 Point = vec(0.0f, 0.0f);
+		FindClosestPointAndMinDistanceFromALineSegment(Va, Vb, CircleCenter, 
+													   &Distance, 
+													   &Point);
+		
+		if(Distance < MinDistance)
+		{
+			MinDistance = Distance;
+			ContactPoint->x = Point.x;
+			ContactPoint->y = Point.y;
+		}
+	}
+}
+
+void
+FindContactPointsCircles(vec2 CenterA, 
+						 real32 RadiusA, 
+						 vec2 CenterB, 
+						 real32 RadiusB, 
+						 vec2* ContactPoint)
+{
+	vec2 A2B = CenterB - CenterA;
+	vec2 Direction = Normalize(A2B);
+	*ContactPoint = CenterA + Direction * RadiusA;
+}
+
+void
+FindContactPoints(physics_body2D* BodyA, physics_body2D* BodyB, 
+				  vec2* Contact1, vec2* Contact2, uint32* ContactPoints)
+{
+	*Contact1 = vec(0.0f, 0.0f);
+	*Contact2 = vec(0.0f, 0.0f);
+	*ContactPoints = 0;
+	
+	if(BodyA->Shape == CIRCLE && BodyB->Shape == CIRCLE)
+    {
+		FindContactPointsCircles(BodyA->Position, BodyA->Radius, 
+								 BodyB->Position, BodyB->Radius, 
+								 Contact1);
+		*ContactPoints = 1;
+	}
+    else if(BodyA->Shape == BOX && BodyB->Shape == BOX)
+    {}
+    else
+    {
+        // NOTE: Either one of them is box and circle
+        // NOTE: Always pass the circle body in the first parameter
+        
+        if(BodyA->Shape == CIRCLE)
+        {
+			vec2* PolygonVerts = GetPhysicsBodyTransformedVertices(BodyB);
+			int PolygonVertsCount = ARRAY_COUNT(BodyB->Vertices);
+			
+			FindContactPointsCircleAndPolygon(BodyA->Position,
+											  BodyA->Radius, 
+											  BodyB->Position, 
+											  PolygonVerts, 
+											  PolygonVertsCount,
+											  Contact1);
+			*ContactPoints = 1;
+		}
+        else
+        {
+			vec2* PolygonVerts = GetPhysicsBodyTransformedVertices(BodyA);
+			int PolygonVertsCount = ARRAY_COUNT(BodyA->Vertices);
+			
+			FindContactPointsCircleAndPolygon(BodyB->Position,
+											  BodyB->Radius, 
+											  BodyA->Position, 
+											  PolygonVerts, 
+											  PolygonVertsCount,
+											  Contact1);
+			*ContactPoints = 1;
+		}
+    }
+}
+
+bool32
 IntersectCircles(vec2 CenterA, real32 RadiusA, 
                  vec2 CenterB, real32 RadiusB, 
                  vec2* OutNormal, real32* OutDepth)
@@ -216,9 +355,9 @@ IntersectCircleAndPolygon(physics_body2D* Circle, physics_body2D* Polygon,
     }
     
     {
-        int ClosestPointIndex = FindClosestPointOnPolygon(Circle->Position, 
-                                                          PolygonVerts,
-                                                          PolygonVertsCount);
+        int ClosestPointIndex = FindClosestVertexOnPolygon(Circle->Position, 
+														   PolygonVerts,
+														   PolygonVertsCount);
         vec2 ClosestPoint = PolygonVerts[ClosestPointIndex];
         
         vec2 Axis = vec(0.0f, 0.0f);
@@ -252,22 +391,6 @@ IntersectCircleAndPolygon(physics_body2D* Circle, physics_body2D* Polygon,
     }
     
     return true;
-}
-
-bool32
-IntersectAABBs(AABB BodyA_AABB, AABB BodyB_AABB)
-{
-	bool32 Collided = true;
-	
-	if(BodyB_AABB.Max.x <= BodyA_AABB.Min.x || 
-	   BodyA_AABB.Max.x <= BodyB_AABB.Min.x ||
-	   BodyB_AABB.Max.y <= BodyA_AABB.Min.y ||
-	   BodyA_AABB.Max.y <= BodyB_AABB.Min.y)
-	{
-		Collided = false;
-	}
-	
-	return Collided;
 }
 
 bool32
@@ -334,6 +457,23 @@ ResolveCollision(collision_manifold* CollisionManifold)
 	B->TransformUpdateRequired = true;
 }
 
+#include<cmath>
+// NOTE: IMPORTANT TEMP FUNCTION, REPLACE WITH MEMORY ARENA ARRAY ASAP!!
+bool32 ContainsContact(const std::vector<vec2>& Contacts, const vec2& Target)
+{
+    const float Epsilon = 0.0001f;
+    
+    for (const vec2& C : Contacts)
+    {
+        if (std::abs(Target.x - C.x) < Epsilon && 
+            std::abs(Target.y - C.y) < Epsilon)
+        {
+            return true;
+        }
+    }
+    
+    return false;
+}
 
 void
 UpdatePhysicsWorld2d(physics_world2D* World, real32 ElapsedTime, int Iterations)
@@ -440,10 +580,16 @@ UpdatePhysicsWorld2d(physics_world2D* World, real32 ElapsedTime, int Iterations)
 				
 				if(CollisionManifold.ContactCount > 0)
 				{
-					World->ContactPoints.push_back(CollisionManifold.Contact1);
+					if(!ContainsContact(World->ContactPoints, CollisionManifold.Contact1))
+					{
+						World->ContactPoints.push_back(CollisionManifold.Contact1);
+					}
 					
 					if(CollisionManifold.ContactCount > 1)
+						if(!ContainsContact(World->ContactPoints, CollisionManifold.Contact2))
+					{
 						World->ContactPoints.push_back(CollisionManifold.Contact2);
+					}
 				}
 			}
 		}

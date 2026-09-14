@@ -203,6 +203,13 @@ inline vec2 Normalize(vec2 A)
     return A;
 }
 
+inline real32 DistanceSquared(vec2 A, vec2 B)
+{
+    real32 Result;
+    Result = (A.x - B.x) * (A.x - B.x) + (A.y - B.y) * (A.y - B.y);
+    return Result;
+}
+
 inline real32 Distance(vec2 A, vec2 B)
 {
     real32 Result;

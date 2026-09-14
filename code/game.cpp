@@ -7,6 +7,8 @@
    rendering)
    4) Dynamic arrays
    5) Memory Arena
+6) Profiler
+7) Optimization; currently it is performing very very bad.....
 */
 
 // NOTE: Including the cpp files for the function definitions
@@ -656,7 +658,7 @@ main(int argc, char* args[])
                         RenderPhysicsBody(Game.Renderer, 
 										  &Game.World->Bodies[i], 
 										  &Game.Camera, 
-                                          RED, BLACK);
+                                          YELLOW, BLACK);
                     else
 					{
 						RenderPhysicsBody(Game.Renderer, 

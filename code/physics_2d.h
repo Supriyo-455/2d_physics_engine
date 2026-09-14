@@ -4,6 +4,7 @@
 #define PHYSICS2_D_H
 
 #include "simple_math.h"
+#include <algorithm>
 #include <vector>
 
 #include "transform_2d.h"
