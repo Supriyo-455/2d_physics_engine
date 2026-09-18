@@ -1,2 +1,7 @@
 build
 .qtcreator
+*.cflags
+*.creator
+*.files
+*.cxxflags
+*.includes
