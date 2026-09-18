@@ -2,9 +2,13 @@
 set -e
 
 EXE_NAME="Game"
-CODE_PATH="code/"
-LIBS_PATH="third_party/"
-ASSETS_PATH="assets/"
+CODE_PATH="$PWD/code/"
+LIBS_PATH="$PWD/third_party/"
+ASSETS_PATH="$PWD/assets/"
+
+# Extract project name from 4coder config, fallback to a default if missing
+PROJECT_NAME=$(awk -F'"' '/project_name/ {print $2}' project.4coder 2>/dev/null)
+PROJECT_NAME="${PROJECT_NAME:-2d_phyics}"
 
 # COMPILER FLAGS
 CXXFLAGS=(
@@ -47,4 +51,21 @@ cp -u "${LIBS_PATH}lib"/*.so build/ 2>/dev/null || true
 cp -ru "${ASSETS_PATH}"* build/assets/ 2>/dev/null || true
 rm -f build/*.o
 
+# Building the executable
 g++ "${CXXFLAGS[@]}" "${CODE_PATH}game.cpp" "${LDFLAGS[@]}" -o "build/$EXE_NAME"
+
+
+# GENERATE QT CREATOR PROJECT FILES
+touch "${PROJECT_NAME}.creator"
+
+find "$CODE_PATH" -type f \( -name "*.cpp" -o -name "*.h" -o -name "*.hpp" \) > "${PROJECT_NAME}.files"
+
+echo "${CODE_PATH}" > "${PROJECT_NAME}.includes"
+echo "${LIBS_PATH}include" >> "${PROJECT_NAME}.includes"
+
+printf "%s\n" "${CXXFLAGS[@]}" > "${PROJECT_NAME}.cxxflags"
+
+mkdir -p .qtcreator
+if [ ! -f ".qtcreator/${PROJECT_NAME}.creator.user" ] && [ -f "debug_template.user.backup" ]; then
+    cp debug_template.user.backup ".qtcreator/${PROJECT_NAME}.creator.user"
+fi

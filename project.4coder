@@ -58,12 +58,21 @@ commands = {
 		.footer_panel = false,
 		.save_dirty_files = true,
 		.cursor_at_end = true,
-	}
+	},
+	.run = {
+		.win = "echo Running the engine & ./misc/run.sh",
+		.linux = "echo Running the engine && ./misc/run.sh",
+		.out = "*compilation*",		
+		.footer_panel = false,
+		.save_dirty_files = true,
+		.cursor_at_end = true,
+	},
 };
 
 fkey_command = {
 	.F1 = "build",
 	.F2 = "debug",
 	.F3 = "test",
-	.F4 = "todo"
+	.F4 = "todo",
+	.F5 = "run"
 };

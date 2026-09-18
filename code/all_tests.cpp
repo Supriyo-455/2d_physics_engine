@@ -2,7 +2,7 @@
 #include <math.h>
 #include "defines.h"
 #include "simple_math.h"
-#include "physics2D.h"
+#include "physics_2d.h"
 
 #define ASSERT_CONDITION(condition, message) do { \
 if (!(condition)) { \
