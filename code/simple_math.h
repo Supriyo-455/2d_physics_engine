@@ -5,26 +5,41 @@
 
 #define PI 3.141592653f
 
-inline real32 absf(real32 x)
+inline real32 
+Abs(real32 x)
 {
     if (x < 0)
         x = -x;
     return x;
 }
 
-inline uint32 RoundReal32ToUint32(real32 f)
+inline uint32 
+RoundReal32ToUint32(real32 f)
 {
-    uint32 Result = static_cast<unsigned int>(f + 0.5);
+    uint32 Result = roundf(f);
     return Result;
 }
 
-inline int Floor(real32 f)
+inline int 
+Floor(real32 f)
 {
-    int Result = static_cast<int>(f + 0.5);
+    int Result = floorf(f);
     return Result;
 }
 
-inline real32 Sin(real32 x)
+inline bool32 
+Equals(real32 A, real32 B)
+{
+	bool32 Result = false;
+	
+	real32 Epsilon = 0.0001f;
+    Result = Abs(A - B) < Epsilon;
+	
+	return Result;
+}
+
+inline real32 
+Sin(real32 x)
 {
     real32 sign = 1;
     if (x < 0)
@@ -48,7 +63,8 @@ inline real32 Sin(real32 x)
     return sign * res;
 }
 
-inline real32 Cos(real32 x)
+inline real32 
+Cos(real32 x)
 {
     if (x < 0)
         x = -x;
@@ -109,27 +125,27 @@ Clamp(real32 Value, real32 Min, real32 Max)
     return Value;
 }
 
-typedef union vec2
+union vec2
 {
     real32 E[2];
     struct
     {
         real32 x, y;
     };
-} vec2;
+};
 
 // TODO: Need to implement swizziling like glsl
-typedef union vec3
+union vec3
 {
     real32 E[3];
     struct
     {
         real32 x, y, z;
     };
-} vec3;
+};
 
 // TODO: Need to implement swizziling like glsl
-typedef union vec4
+union vec4
 {
     real32 E[4];
     struct
@@ -141,7 +157,7 @@ typedef union vec4
     {
         real32 r, g, b, a;
     };
-} vec4;
+};
 
 inline vec2 vec(real32 x, real32 y)
 {
@@ -285,6 +301,15 @@ inline vec2 &operator*=(vec2 &B, real32 A)
 {
     B = A * B;
     return B;
+}
+
+inline bool32 Equals(vec2 A, vec2 B)
+{
+	bool32 Result = false;
+	
+	Result = Equals(A.x, B.x) && Equals(A.y, B.y);
+	
+	return Result;
 }
 
 inline vec3 operator-(vec3 A)
@@ -454,7 +479,9 @@ inline mat4x4 Identity()
 {
     mat4x4 R = {};
     
-    for (int i = 0; i < 4; i++)
+    for (int i = 0; 
+		 i < 4; 
+		 i++)
     {
         R.E[i][i] = 1;
     }
@@ -465,7 +492,9 @@ inline mat4x4 ScalingMat4x4(vec3 S)
 {
     mat4x4 I = Identity();
     
-    for (int i = 0; i < 3; i++)
+    for (int i = 0; 
+		 i < 3; 
+		 i++)
     {
         I.E[i][i] *= S.E[i];
     }
@@ -474,7 +503,9 @@ inline mat4x4 ScalingMat4x4(vec3 S)
 
 inline mat4x4 transMat4x4(mat4x4 A, vec3 T)
 {
-    for (int i = 0; i < 3; i++)
+    for (int i = 0; 
+		 i < 3; 
+		 i++)
     {
         A.E[i][3] = T.E[i];
     }
@@ -484,9 +515,13 @@ inline mat4x4 transMat4x4(mat4x4 A, vec3 T)
 inline mat4x4 operator*(mat4x4 A, real32 B)
 {
     mat4x4 R = {};
-    for (int r = 0; r < 4; r++)
+    for (int r = 0; 
+		 r < 4; 
+		 r++)
     {
-        for (int c = 0; c < 4; c++)
+        for (int c = 0; 
+			 c < 4; 
+			 c++)
         {
             R.E[r][c] = B * A.E[r][c];
         }
@@ -497,11 +532,17 @@ inline mat4x4 operator*(mat4x4 A, real32 B)
 inline mat4x4 operator*(mat4x4 A, mat4x4 B)
 {
     mat4x4 R = {};
-    for (int r = 0; r < 4; r++)
+    for (int r = 0; 
+		 r < 4; 
+		 r++)
     {
-        for (int c = 0; c < 4; c++)
+        for (int c = 0; 
+			 c < 4; 
+			 c++)
         {
-            for (int i = 0; i < 4; i++)
+            for (int i = 0; 
+				 i < 4; 
+				 i++)
             {
                 R.E[r][c] += A.E[r][i] + B.E[i][c];
             }
@@ -513,9 +554,13 @@ inline mat4x4 operator*(mat4x4 A, mat4x4 B)
 inline vec4 operator*(mat4x4 A, vec4 B)
 {
     vec4 R = {};
-    for (int r = 0; r < 4; r++)
+    for (int r = 0; 
+		 r < 4; 
+		 r++)
     {
-        for (int c = 0; c < 4; c++)
+        for (int c = 0; 
+			 c < 4; 
+			 c++)
         {
             R.E[r] += A.E[r][c] * B.E[c];
         }
@@ -526,9 +571,13 @@ inline vec4 operator*(mat4x4 A, vec4 B)
 inline mat4x4 operator+(mat4x4 A, mat4x4 B)
 {
     mat4x4 R = {};
-    for (int r = 0; r < 4; r++)
+    for (int r = 0; 
+		 r < 4; 
+		 r++)
     {
-        for (int c = 0; c < 4; c++)
+        for (int c = 0; 
+			 c < 4; 
+			 c++)
         {
             R.E[r][c] += A.E[r][c] + B.E[r][c];
         }
@@ -556,10 +605,12 @@ inline mat4x4 rotateX(real32 deg)
     real32 cosval = (real32) cos(deg);
     mat4x4 rMat =
     {
-        {{1, 0, 0, 0},
-            {0, cosval, -sinval, 0},
+        {
+			{1, 0, 0, 0},
+			{0, cosval, -sinval, 0},
             {0, sinval, cosval, 0},
-            {0, 0, 0, 1}},
+            {0, 0, 0, 1}
+		},
     };
     return rMat;
 }
@@ -567,9 +618,13 @@ inline mat4x4 rotateX(real32 deg)
 inline mat4x4 transpose(mat4x4 A)
 {
     mat4x4 R;
-    for (int j = 0; j < 4; j++)
+    for (int j = 0; 
+		 j < 4; 
+		 j++)
     {
-        for (int i = 0; i < 4; i++)
+        for (int i = 0; 
+			 i < 4; 
+			 i++)
         {
             R.E[j][i] = A.E[i][j];
         }
@@ -584,10 +639,13 @@ inline mat4x4 projection(real32 AspectWithOverHeight, real32 FocalLength)
     real32 c = FocalLength;
     mat4x4 R =
     {
-        {{a, 0, 0, 0},
+        {
+			{a, 0, 0, 0},
             {0, b, 0, 0},
             {0, 0, 1, 0},
-            {0, 0, c, 0}}};
+            {0, 0, c, 0}
+		}
+	};
     
     return R;
 }

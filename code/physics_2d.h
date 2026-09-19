@@ -12,6 +12,11 @@
 #include "physics_body_2d.h"
 #include "collision_2d.h"
 
+#define MAX_BODIES 4096
+#define MAX_COLLISION_MANIFOLDS 100000
+#define MAX_CONTACT_POINTS 100000
+#define MAX_CACHED_AABB 1000
+
 struct
 physics_world2D
 {
@@ -23,6 +28,8 @@ physics_world2D
 	
 	vec2* ContactPoints;
 	uint32 ContactPointsCount;
+	
+	AABB* CachedAABBs;
 	
 	inline local_persist const real32 ForceMultiplier = 1000.0f;
     

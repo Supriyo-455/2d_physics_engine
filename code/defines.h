@@ -81,8 +81,4 @@ __LogMessage(stdout, __FILE__, __LINE__, "WARNING", MSG, ##__VA_ARGS__)
 #define LOG_INFO(MSG, ...) \
 __LogMessage(stdout, __FILE__, __LINE__, "INFO", MSG, ##__VA_ARGS__)
 
-#define MAX_BODIES 4096
-#define MAX_COLLISION_MANIFOLDS 100000
-#define MAX_CONTACT_POINTS 100000
-
 #endif //DEFINES_H

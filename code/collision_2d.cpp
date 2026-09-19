@@ -43,7 +43,9 @@ GetAABBFromPhysicsBody(physics_body2D* Body)
 		vec2* PolygonVerts = GetPhysicsBodyTransformedVertices(Body);
 		int PolygonVertsCount = ARRAY_COUNT(Body->Vertices);
 		
-		for(int i=0; i<PolygonVertsCount; i++)
+		for(int i = 0; 
+			i < PolygonVertsCount; 
+			i++)
 		{
 			vec2 V = PolygonVerts[i];
 			
@@ -121,14 +123,17 @@ FindContactPointsCircleAndPolygon(vec2 CircleCenter,
 								  vec2* ContactPoint)
 {
 	real32 MinDistance = FLT_MAX;
-    for(int i=0; i<PolygonVerticesCount; i++)
+    real32 Distance;
+	vec2 Point = vec(0.0f, 0.0f);
+	
+	for(int i = 0; 
+		i < PolygonVerticesCount; 
+		i++)
     {
-        vec2 Va = PolygonVertices[i];
-		vec2 Vb = PolygonVertices[(i+1) % PolygonVerticesCount];
+        vec2 A = PolygonVertices[i];
+		vec2 B = PolygonVertices[(i+1) % PolygonVerticesCount];
 		
-		real32 Distance;
-		vec2 Point = vec(0.0f, 0.0f);
-		FindClosestPointAndMinDistanceFromALineSegment(Va, Vb, CircleCenter, 
+		FindClosestPointAndMinDistanceFromALineSegment(A, B, CircleCenter, 
 													   &Distance, 
 													   &Point);
 		
@@ -154,6 +159,94 @@ FindContactPointsCircles(vec2 CenterA,
 }
 
 void
+FindContactPointsBoxes(vec2* VerticesA, 
+					   int VerticesACount,
+					   vec2* VerticesB, 
+					   int VerticesBCount,
+					   vec2* Contact1,
+					   vec2* Contact2,
+					   uint32* ContactCount)
+{
+	real32 MinDistance = FLT_MAX;
+	real32 Distance;
+	vec2 ClosestPoint = vec(0.0f, 0.0f);
+	
+	for(int i = 0; 
+		i < VerticesACount;
+		i++)
+	{
+		vec2 Point = VerticesA[i];
+		for(int j = 0; 
+			j < VerticesBCount; 
+			j++)
+		{
+			vec2 A = VerticesB[j];
+			vec2 B = VerticesB[(j + 1) % VerticesBCount];
+			
+			FindClosestPointAndMinDistanceFromALineSegment(A, B, Point, 
+														   &Distance, 
+														   &ClosestPoint);
+			if(MinDistance == Distance)
+			{
+				if(!Equals(*Contact1, ClosestPoint))
+				{
+					*ContactCount = 2;
+					
+					Contact2->x = ClosestPoint.x;
+					Contact2->y = ClosestPoint.y;
+				}
+			}
+			else if(MinDistance > Distance)
+			{
+				MinDistance = Distance;
+				
+				*ContactCount = 1;
+				
+				Contact1->x = ClosestPoint.x;
+				Contact1->y = ClosestPoint.y;
+			}
+		}
+	}
+	
+	for(int i = 0; 
+		i < VerticesBCount; 
+		i++)
+	{
+		vec2 Point = VerticesB[i];
+		for(int j = 0; 
+			j < VerticesACount; 
+			j++)
+		{
+			vec2 A = VerticesA[j];
+			vec2 B = VerticesA[(j + 1) % VerticesACount];
+			
+			FindClosestPointAndMinDistanceFromALineSegment(A, B, Point, 
+														   &Distance, 
+														   &ClosestPoint);
+			if(MinDistance == Distance)
+			{
+				if(!Equals(*Contact1, ClosestPoint))
+				{
+					*ContactCount = 2;
+					
+					Contact2->x = ClosestPoint.x;
+					Contact2->y = ClosestPoint.y;
+				}
+			}
+			else if(MinDistance > Distance)
+			{
+				MinDistance = Distance;
+				
+				*ContactCount = 1;
+				
+				Contact1->x = ClosestPoint.x;
+				Contact1->y = ClosestPoint.y;
+			}
+		}
+	}
+}
+
+void
 FindContactPoints(physics_body2D* BodyA, physics_body2D* BodyB, 
 				  vec2* Contact1, vec2* Contact2, uint32* ContactPoints)
 {
@@ -169,7 +262,21 @@ FindContactPoints(physics_body2D* BodyA, physics_body2D* BodyB,
 		*ContactPoints = 1;
 	}
     else if(BodyA->Shape == BOX && BodyB->Shape == BOX)
-    {}
+    {
+		vec2* VerticesA = GetPhysicsBodyTransformedVertices(BodyA);
+		int VerticesACount = ARRAY_COUNT(BodyA->Vertices);
+		
+		vec2* VerticesB = GetPhysicsBodyTransformedVertices(BodyB);
+		int VerticesBCount = ARRAY_COUNT(BodyB->Vertices);
+		
+		FindContactPointsBoxes(VerticesA, 
+							   VerticesACount,
+							   VerticesB, 
+							   VerticesBCount,
+							   Contact1,
+							   Contact2,
+							   ContactPoints);
+	}
     else
     {
         // NOTE: Either one of them is box and circle
@@ -239,7 +346,9 @@ IntersectPolygons(physics_body2D* BodyA, physics_body2D* BodyB,
     int VertsCountA = ARRAY_COUNT(BodyA->Vertices);
     int VertsCountB = ARRAY_COUNT(BodyB->Vertices);
     
-    for(int i=0; i<VertsCountA; i++)
+    for(int i = 0; 
+		i < VertsCountA; 
+		i++)
     {
         int Next = (i + 1) % VertsCountA;
         vec2 Va = VertsA[i];
@@ -268,7 +377,9 @@ IntersectPolygons(physics_body2D* BodyA, physics_body2D* BodyB,
         }
     }
     
-    for(int i=0; i<VertsCountB; i++)
+    for(int i = 0; 
+		i < VertsCountB; 
+		i++)
     {
         int Next = (i + 1) % VertsCountB;
         vec2 Va = VertsB[i];
@@ -324,7 +435,9 @@ IntersectCircleAndPolygon(physics_body2D* Circle, physics_body2D* Polygon,
     vec2* PolygonVerts = GetPhysicsBodyTransformedVertices(Polygon);
     int PolygonVertsCount = ARRAY_COUNT(Polygon->Vertices);
     
-    for(int i=0; i<PolygonVertsCount; i++)
+    for(int i = 0; 
+		i < PolygonVertsCount; 
+		i++)
     {
         int Next = (i + 1) % PolygonVertsCount;
         vec2 Va = PolygonVerts[i];
@@ -457,18 +570,15 @@ ResolveCollision(collision_manifold* CollisionManifold)
 	B->TransformUpdateRequired = true;
 }
 
-#include<cmath>
 bool32 
 ContainsContact(vec2* Contacts, uint32 ContactsCount, vec2 Target)
 {
-    const float Epsilon = 0.0001f;
-    
-    for (uint32 i = 0; i < ContactsCount; i++)
+    for (int i = 0; 
+		 i < ContactsCount; 
+		 i++)
     {
 		vec2 C = Contacts[i];
-		// TODO: Remove ABS
-        if (std::abs(Target.x - C.x) < Epsilon && 
-            std::abs(Target.y - C.y) < Epsilon)
+        if (Equals(Target, C))
         {
             return true;
         }
@@ -487,10 +597,14 @@ UpdatePhysicsWorld2d(physics_world2D* World, real32 ElapsedTime, int Iterations)
 	
 	real32 SubStepTime = ElapsedTime / Iterations;
 	
-	for(int it=1; it<Iterations; it++)
+	for(int it = 1; 
+		it < Iterations; 
+		it++)
 	{
 		// NOTE: Movement step
-		for(int i=0; i<World->BodyCount; i++)
+		for(int i = 0; 
+			i < World->BodyCount; 
+			i++)
 		{
 			ApplyGravity(&World->Bodies[i],
 						 World->Gravity, 
@@ -506,14 +620,17 @@ UpdatePhysicsWorld2d(physics_world2D* World, real32 ElapsedTime, int Iterations)
 		}
 		
 		// NOTE: Precalculate AABBs to avoid O(N^2) recalculations
-		AABB CachedAABBs[1000];
-		for(int i=0; i<World->BodyCount; i++)
+		for(int i = 0; 
+			i < World->BodyCount; 
+			i++)
 		{
-			CachedAABBs[i] = GetAABBFromPhysicsBody(&World->Bodies[i]);
+			World->CachedAABBs[i] = GetAABBFromPhysicsBody(&World->Bodies[i]);
 		}
 		
 		// NOTE: Reset collision state
-		for(int i=0; i<World->BodyCount; i++)
+		for(int i = 0; 
+			i < World->BodyCount; 
+			i++)
 		{
 			World->Bodies[i].IsCollided = false;
 		}
@@ -522,15 +639,19 @@ UpdatePhysicsWorld2d(physics_world2D* World, real32 ElapsedTime, int Iterations)
 		World->CollisionManifoldsCount = 0;
 		
 		// NOTE: Collide step
-		for(int i=0; i<World->BodyCount-1; i++)
+		for(int i = 0; 
+			i < World->BodyCount-1; 
+			i++)
 		{
 			physics_body2D* BodyA = &World->Bodies[i];
-			AABB BodyA_AABB = CachedAABBs[i];
+			AABB BodyA_AABB = World->CachedAABBs[i];
 			
-			for(int j=i+1; j<World->BodyCount; j++)
+			for(int j = i + 1; 
+				j < World->BodyCount; 
+				j++)
 			{
 				physics_body2D* BodyB = &World->Bodies[j];
-				AABB BodyB_AABB = CachedAABBs[j];
+				AABB BodyB_AABB = World->CachedAABBs[j];
 				
 				if(BodyA->IsStatic && BodyB->IsStatic)
 				{
@@ -584,24 +705,30 @@ UpdatePhysicsWorld2d(physics_world2D* World, real32 ElapsedTime, int Iterations)
 				}
 			}
 			
-			for(int i=0; i<World->CollisionManifoldsCount; i++)
+			for(int i = 0; 
+				i < World->CollisionManifoldsCount; 
+				i++)
 			{
 				collision_manifold CollisionManifold = World->CollisionManifolds[i];
 				ResolveCollision(&CollisionManifold);
 				
-				if(CollisionManifold.ContactCount > 0)
+				if (World->ContactPointsCount < MAX_CONTACT_POINTS)
 				{
-					if(!ContainsContact(World->ContactPoints, World->ContactPointsCount, CollisionManifold.Contact1))
+					if(CollisionManifold.ContactCount > 0)
 					{
-						if (World->ContactPointsCount < MAX_CONTACT_POINTS)
+						if(!ContainsContact(World->ContactPoints, World->ContactPointsCount, CollisionManifold.Contact1))
+						{
 							World->ContactPoints[World->ContactPointsCount++] = CollisionManifold.Contact1;
-					}
-					
-					if(CollisionManifold.ContactCount > 1)
-						if(!ContainsContact(World->ContactPoints, World->ContactPointsCount, CollisionManifold.Contact2))
-					{
-						if (World->ContactPointsCount < MAX_CONTACT_POINTS)
-							World->ContactPoints[World->ContactPointsCount++]  = CollisionManifold.Contact2;
+						}
+						
+						if(CollisionManifold.ContactCount > 1)
+						{
+							if(!ContainsContact(World->ContactPoints, World->ContactPointsCount, CollisionManifold.Contact2))
+							{
+								
+								World->ContactPoints[World->ContactPointsCount++]  = CollisionManifold.Contact2;
+							}
+						}
 					}
 				}
 			}

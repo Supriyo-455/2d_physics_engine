@@ -29,6 +29,7 @@ SDL_Color ConvertToSDLColor(vec4 Color)
 // TODO: Need to replace this cpu based calls with Opengl
 // TODO: Generalize texture
 // TODO: Texture Scalling is not optimized
+// TODO: This texture rendering causing so much performance issue, NEED TO REPLACE WITH OPENGL ASAP!!
 void RenderTextFromCenter(SDL_Renderer* Renderer,
 						  int XPos,
                           int YPos,
@@ -250,7 +251,9 @@ RenderPhysicsBody(SDL_Renderer* Renderer,
             SDL_Vertex SdlVerts[4] = {};
             SDL_Color Fill = ConvertToSDLColor(FillColor);
             
-            for(int i = 0; i < 4; i++)
+            for(int i = 0; 
+				i < 4; 
+				i++)
             {
                 SdlVerts[i].position.x = (WorldVerts[i].x - Camera->Position.x) * Camera->Zoom + (Camera->Width / 2.0f);
                 
@@ -272,7 +275,9 @@ RenderPhysicsBody(SDL_Renderer* Renderer,
             SDL_Color Border = ConvertToSDLColor(BorderColor);
             SDL_SetRenderDrawColor(Renderer, Border.r, Border.g, Border.b, Border.a);
             
-            for(int i = 0; i < 4; i++)
+            for(int i = 0; 
+				i < 4; 
+				i++)
             {
                 int Next = (i + 1) % 4;
                 SDL_RenderDrawLineF(Renderer,
@@ -506,10 +511,8 @@ HandleInput(game* Game)
                 
                 case SDLK_r:
                 {
-					while(Game->World->BodyCount > 1)
-					{
-						Game->World->BodyCount--;
-					}
+					Game->World->BodyCount = 1;
+					Game->BodyColorsCount = 1;
                     break;
                 }
                 
@@ -581,6 +584,8 @@ InitializeGame(game* Game)
 	Game->World->Bodies = PushArray(Game->MemoryArena, MAX_BODIES, physics_body2D);
 	Game->World->ContactPoints = PushArray(Game->MemoryArena, MAX_CONTACT_POINTS, vec2);
 	Game->World->CollisionManifolds = PushArray(Game->MemoryArena, MAX_COLLISION_MANIFOLDS, collision_manifold);
+	Game->World->CachedAABBs = 
+		PushArray(Game->MemoryArena, MAX_CACHED_AABB, AABB);
 	
 	physics_body2D BottomPlatform = CreateBoxPhysicsBody2D(Game->World,
 														   vec(SCREEN_WIDTH / 2.0f, SCREEN_HEIGHT - (PADDING_20 / 2.0f)),
@@ -609,12 +614,13 @@ DeleteOutofReachPhysicsBodies(game* Game)
 	real32 BoundTop = Game->Camera.Position.y - (MaxViewHeight / 2.0f);
 	real32 BoundBottom = Game->Camera.Position.y + (MaxViewHeight / 2.0f);
 	
-	for(uint32 i = 0; i < Game->World->BodyCount;)
+	for(int i = 0; 
+		i < Game->World->BodyCount;)
 	{
 		if(!Game->World->Bodies[i].IsStatic)
 		{
 			AABB aabb = GetAABBFromPhysicsBody(&Game->World->Bodies[i]);
-			if(aabb.Min.x < BoundLeft || aabb.Max.x > BoundRight || aabb.Min.y < BoundTop || aabb.Max.y > BoundBottom)
+			if(aabb.Max.x < BoundLeft || aabb.Min.x > BoundRight || aabb.Max.y < BoundTop || aabb.Min.y > BoundBottom)
 			{
 				// TODO: Replace normal array with linkedlist for deletion
 				for(uint32 j = i; j < Game->World->BodyCount - 1; j++)
@@ -683,7 +689,9 @@ main(int argc, char* args[])
             ClearRenderer(Game->Renderer, GRAY);
             
             // NOTE: Render all the physics bodies
-            for(int i=0; i<Game->World->BodyCount; i++)
+            for(int i = 0; 
+				i < Game->World->BodyCount; 
+				i++)
             {
                 real32 Width, Height;
                 if(Game->World->Bodies[i].Shape == CIRCLE)
@@ -710,8 +718,10 @@ main(int argc, char* args[])
                 }
             }
 			
-#if 0
-			for(int i=0; i<Game->World->ContactPointsCount; i++)
+#if 1
+			for(int i = 0; 
+				i < Game->World->ContactPointsCount; 
+				i++)
 			{
 				vec2 ContactPoint = Game->World->ContactPoints[i];
 				uint32 X = RoundReal32ToUint32((ContactPoint.x - Game->Camera.Position.x) * Game->Camera.Zoom + (Game->Camera.Width / 2.0f));
@@ -752,7 +762,13 @@ main(int argc, char* args[])
                                      WHITE,
 									 40);
             }
-            
+			
+#if 0
+			char buf[256] = {};
+			sprintf_s(buf, "FPS: %d, Total Physics Bodies: %d\r\n", GetFPS(FPSTimer), Game->World->BodyCount);
+			LOG_INFO(buf);
+#endif
+			
             SDL_RenderPresent(Game->Renderer);
         }
     }
