@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <vector>
 
+#include "memory.h"
 #include "transform_2d.h"
 #include "physics_body_2d.h"
 #include "collision_2d.h"
@@ -14,13 +15,18 @@
 struct
 physics_world2D
 {
-	std::vector<physics_body2D> Bodies;
-	std::vector<collision_manifold> CollisionManifolds;
-	std::vector<vec2> ContactPoints;
+	physics_body2D* Bodies;
+	uint32 BodyCount;
+	
+	collision_manifold* CollisionManifolds;
+	uint32 CollisionManifoldsCount;
+	
+	vec2* ContactPoints;
+	uint32 ContactPointsCount;
 	
 	inline local_persist const real32 ForceMultiplier = 1000.0f;
     
-	inline local_persist const int MaxIteration = 128;
+	inline local_persist const int MaxIteration = 64;
 	inline local_persist const int MinIteration = 1;
 	
     // NOTE: Gravity unit - meter/sec^2
@@ -36,9 +42,9 @@ physics_world2D
 };
 
 // NOTE: Unity Build dont re-arrange these files
+#include "memory.cpp"
 #include "transform_2d.cpp"
 #include "physics_body_2d.cpp"
 #include "collision_2d.cpp"
-
 
 #endif //PHYSICS2_D_H

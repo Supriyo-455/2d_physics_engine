@@ -5,7 +5,7 @@
 #include "simple_math.h"
 #include "physics_2d.h"
 
-#define SCREEN_WIDTH 800
+#define SCREEN_WIDTH 1300
 #define SCREEN_HEIGHT 800
 
 #define PADDING_20 20
@@ -45,8 +45,7 @@ global vec4 YELLOW = {
 	.a=1.0f
 };
 
-struct
-texture
+struct texture
 {
     // NOTE: Actual hardware texture
     SDL_Texture* SdlTexture;
@@ -56,8 +55,7 @@ texture
 };
 
 // TODO: SDL Indepent user input and output
-struct
-mouse
+struct mouse
 {
     int XPos;
     int YPos;
@@ -68,7 +66,7 @@ mouse
     bool32 ButtonState[3];
 };
 
-typedef struct
+struct simple_camera
 {
     real32 Pan;
     real32 Zoom;
@@ -80,11 +78,14 @@ typedef struct
 	
 	real32 MaxZoom;
 	real32 MinZoom;
-}simple_camera;
+};
 
-typedef struct
+struct game
 {
-    SDL_Window* Window;
+    memory_arena* MemoryArena;
+	uint64 MemoryArenaSize;
+	
+	SDL_Window* Window;
     SDL_Renderer* Renderer;
     TTF_Font* Font;
     SDL_Event Event;
@@ -99,7 +100,12 @@ typedef struct
     
 	physics_world2D* World;
 	
+	vec4* BodyColors;
+	uint32 BodyColorsCount;
+	
+	bool32 HighlightCollisions;
+	
     bool32 Running;
-}game;
+};
 
 #endif //GAME_H

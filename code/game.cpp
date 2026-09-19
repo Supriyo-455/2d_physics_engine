@@ -205,7 +205,8 @@ RenderPhysicsBody(SDL_Renderer* Renderer,
 				  physics_body2D* Body, 
 				  simple_camera* Camera, 
 				  vec4 FillColor, 
-				  vec4 BorderColor)
+				  vec4 BorderColor,
+				  bool32 HighlightCollisions)
 {
     switch(Body->Shape)
     {
@@ -218,13 +219,19 @@ RenderPhysicsBody(SDL_Renderer* Renderer,
             
             RenderFilledCircle(Renderer, X, Y, Radius, FillColor);
             
-            if(Body->IsCollided)
-                BorderColor = RED;
+			if(HighlightCollisions)
+			{
+				if(Body->IsCollided)
+                {
+					BorderColor = RED;
+				}
+			}
             
             RenderHollowCircle(Renderer, X, Y, Radius, BorderColor);
             
             // TODO: This is ugly and hacky, no actual rotation of circle
-            SDL_Color Border = ConvertToSDLColor(BorderColor);
+#if 0
+			SDL_Color Border = ConvertToSDLColor(BorderColor);
             SDL_SetRenderDrawColor(Renderer, Border.r, Border.g, Border.b, Border.a);
             
             real32 RCos = X  + Radius * cosf(Body->Rotation);
@@ -233,6 +240,7 @@ RenderPhysicsBody(SDL_Renderer* Renderer,
             SDL_RenderDrawLineF(Renderer,
                                 (real32) X, (real32) Y,
                                 RCos, RSin);
+#endif
         }
         break;
         case BOX:
@@ -253,9 +261,13 @@ RenderPhysicsBody(SDL_Renderer* Renderer,
             
             SDL_RenderGeometry(Renderer, NULL, SdlVerts, 4, Body->Triangles, 6);
             
-            
-            if(Body->IsCollided)
-                BorderColor = RED;
+			if(HighlightCollisions)
+			{
+				if(Body->IsCollided)
+                {
+					BorderColor = RED;
+				}
+			}
             
             SDL_Color Border = ConvertToSDLColor(BorderColor);
             SDL_SetRenderDrawColor(Renderer, Border.r, Border.g, Border.b, Border.a);
@@ -297,6 +309,10 @@ bool32
 InitializeEngine(game* Game)
 {
     bool32 success = true;
+    
+    // NOTE: Force OpenGL driver and Render Batching to drastically reduce draw calls
+    SDL_SetHint(SDL_HINT_RENDER_DRIVER, "opengl");
+    SDL_SetHint(SDL_HINT_RENDER_BATCHING, "1");
     
     if(SDL_Init(SDL_INIT_VIDEO) < 0)
     {
@@ -376,6 +392,8 @@ CloseGame(game* Game)
     SDL_DestroyWindow( Game->Window );
     Game->Window = NULL;
     
+	MemoryArenaFreeAll(Game->MemoryArena);
+	
     SDL_Quit();
 }
 
@@ -462,8 +480,9 @@ HandleInput(game* Game)
 					
 					physics_body2D Body = CreateCirclePhysicsBody2D(Game->World, vec(MousePos.x, MousePos.y), 10.0f, 0.6f, 0.90f, false);
 					
-					Game->World->Bodies.push_back(Body);
-                    
+					Game->World->Bodies[Game->World->BodyCount++] = Body;
+					Game->BodyColors[Game->BodyColorsCount++] = GenerateRandomColor();
+					
 					break;
                 }
 				
@@ -474,26 +493,38 @@ HandleInput(game* Game)
 					
 					vec2 MousePos = GetRelativeWorldPosition(&Game->Camera, (real32)MouseX, (real32)MouseY); 
 					
-					physics_body2D Body = CreateBoxPhysicsBody2D(Game->World, vec(MousePos.x, MousePos.y), 20.0f, 20.0f, 0.6f, 0.60f, false);
+					if(Game->World->BodyCount < MAX_BODIES)
+					{
+						physics_body2D Body = CreateBoxPhysicsBody2D(Game->World, vec(MousePos.x, MousePos.y), 20.0f, 20.0f, 0.6f, 0.60f, false);
+						
+						Game->World->Bodies[Game->World->BodyCount++] = Body;
+						Game->BodyColors[Game->BodyColorsCount++] = GenerateRandomColor();
+					}
 					
-					Game->World->Bodies.push_back(Body);
-                    
 					break;
                 }
                 
                 case SDLK_r:
                 {
-					while(Game->World->Bodies.size() > 1)
+					while(Game->World->BodyCount > 1)
 					{
-						Game->World->Bodies.pop_back();
+						Game->World->BodyCount--;
 					}
                     break;
                 }
                 
                 case SDLK_SPACE:
                 {
-                    LOG_INFO("Space pressed!!\n");
-                    break;
+					Game->HighlightCollisions = !Game->HighlightCollisions;
+                    if(Game->HighlightCollisions)
+					{
+						LOG_INFO("Collisions Highlighter ON!");
+					}
+					else
+					{
+						LOG_INFO("Collisions Highlighter OFF!");
+					}
+					break;
                 }
                 
                 default:
@@ -524,7 +555,7 @@ ClearRenderer(SDL_Renderer* Renderer, vec4 Color)
 }
 
 void
-InitializeGameAndWorld(game* Game, physics_world2D* World)
+InitializeGame(game* Game)
 {
 	InitializeRandomNumbers();
 	
@@ -542,9 +573,14 @@ InitializeGameAndWorld(game* Game, physics_world2D* World)
 	Game->Camera.Position.x = SCREEN_WIDTH / 2.0f;
 	Game->Camera.Position.y = SCREEN_HEIGHT / 2.0f;
 	Game->Camera.MaxZoom = 10.0f;
-	Game->Camera.MinZoom = 0.30f;
+	Game->Camera.MinZoom = 1.00f;
 	
-	Game->World = World;
+	Game->World = PushStruct(Game->MemoryArena, physics_world2D);
+	
+	Game->BodyColors = PushArray(Game->MemoryArena, MAX_BODIES, vec4);
+	Game->World->Bodies = PushArray(Game->MemoryArena, MAX_BODIES, physics_body2D);
+	Game->World->ContactPoints = PushArray(Game->MemoryArena, MAX_CONTACT_POINTS, vec2);
+	Game->World->CollisionManifolds = PushArray(Game->MemoryArena, MAX_COLLISION_MANIFOLDS, collision_manifold);
 	
 	physics_body2D BottomPlatform = CreateBoxPhysicsBody2D(Game->World,
 														   vec(SCREEN_WIDTH / 2.0f, SCREEN_HEIGHT - (PADDING_20 / 2.0f)),
@@ -553,11 +589,13 @@ InitializeGameAndWorld(game* Game, physics_world2D* World)
 														   0.5f,
 														   0.5f,
 														   true);
-	Game->World->Bodies.push_back(BottomPlatform);
 	
-	physics_body2D Player = CreateCirclePhysicsBody2D(Game->World, vec(SCREEN_WIDTH/2, SCREEN_HEIGHT/2), 10.0f, 0.6f, 0.50f, false);
+	Game->World->Bodies[Game->World->BodyCount++] = BottomPlatform;
+	Game->BodyColors[Game->BodyColorsCount++] = GenerateRandomColor();
 	
-	Game->World->Bodies.push_back(Player);
+	// physics_body2D Player = CreateCirclePhysicsBody2D(Game->World, vec(SCREEN_WIDTH/2, SCREEN_HEIGHT/2), 10.0f, 0.6f, 0.50f, false);
+	
+	// Game->World->Bodies.push_back(Player);
 }
 
 void
@@ -571,15 +609,23 @@ DeleteOutofReachPhysicsBodies(game* Game)
 	real32 BoundTop = Game->Camera.Position.y - (MaxViewHeight / 2.0f);
 	real32 BoundBottom = Game->Camera.Position.y + (MaxViewHeight / 2.0f);
 	
-	for(uint32 i = 0; i < Game->World->Bodies.size();)
+	for(uint32 i = 0; i < Game->World->BodyCount;)
 	{
 		if(!Game->World->Bodies[i].IsStatic)
 		{
-			// NOTE: CRAZY ACCESS OF VECTOR ELEMENT!!!
-			AABB aabb = GetAABBFromPhysicsBody(&Game->World->Bodies.data()[i]);
+			AABB aabb = GetAABBFromPhysicsBody(&Game->World->Bodies[i]);
 			if(aabb.Min.x < BoundLeft || aabb.Max.x > BoundRight || aabb.Min.y < BoundTop || aabb.Max.y > BoundBottom)
 			{
-				Game->World->Bodies.erase(Game->World->Bodies.begin() + i);
+				// TODO: Replace normal array with linkedlist for deletion
+				for(uint32 j = i; j < Game->World->BodyCount - 1; j++)
+				{
+					Game->World->Bodies[j] = Game->World->Bodies[j+1];
+					Game->BodyColors[j] = Game->BodyColors[j+1];
+				}
+				
+				Game->World->BodyCount -= 1;
+				Game->BodyColorsCount -= 1;
+				
 				continue;
 			}
 		}
@@ -590,106 +636,104 @@ DeleteOutofReachPhysicsBodies(game* Game)
 int
 main(int argc, char* args[])
 {
-    game Game = {};
-    
-    if(!InitializeEngine(&Game))
+    uint64 MemoryArenaSize = Gigabytes(1);
+	game* Game = BootstrapPushStruct(game, MemoryArenaSize);
+	Assert(Game);
+	Game->MemoryArenaSize = MemoryArenaSize;
+	
+    if(!InitializeEngine(Game))
     {
         LOG_ERROR("Failed to initialize!\n");
         return -1;
     }
     else
     {
-		physics_world2D World = {};
-		InitializeGameAndWorld(&Game, &World);
-        
-        fpsTimer FPSTimer = {};
-		FPSTimerInit(&FPSTimer);
+		InitializeGame(Game);
 		
-        while(Game.Running)
+		fpsTimer* FPSTimer = PushStruct(Game->MemoryArena, fpsTimer);
+		FPSTimerInit(FPSTimer);
+		
+        while(Game->Running)
         {
-            // TODO: Compress this into the fps timer struct
-            FPSTimerUpdate(&FPSTimer);
+            FPSTimerUpdate(FPSTimer);
             
-            HandleInput(&Game);
+            HandleInput(Game);
             
-            /*if(Game.dx != 0.0f || Game.dy != 0.0f)
+            /*if(Game->dx != 0.0f || Game->dy != 0.0f)
             {            
-                // vec2 Direction = Normalize(vec(Game.dx, Game.dy));
-                // vec2 Velocity = (Direction * Game.Speed);
+                // vec2 Direction = Normalize(vec(Game->dx, Game->dy));
+                // vec2 Velocity = (Direction * Game->Speed);
                 // World.Bodies[0].LinearVelocity = Velocity;
                 
-                vec2 ForceDirection = Normalize(vec(Game.dx, Game.dy));
-                vec2 Force = (ForceDirection * Game.ForceMagnitude);
-                Game.World->Bodies[1].Force = Force;
+                vec2 ForceDirection = Normalize(vec(Game->dx, Game->dy));
+                vec2 Force = (ForceDirection * Game->ForceMagnitude);
+                Game->World->Bodies[1].Force = Force;
             }
             
-            if(Game.RotationalVelocity != 0.0f)
-                Game.World->Bodies[1].RotationalVelocity = Game.RotationalVelocity;
+            if(Game->RotationalVelocity != 0.0f)
+                Game->World->Bodies[1].RotationalVelocity = Game->RotationalVelocity;
             else
-                Game.World->Bodies[1].RotationalVelocity = 0.0f;
+                Game->World->Bodies[1].RotationalVelocity = 0.0f;
             */
 			
-            UpdatePhysicsWorld2d(Game.World, (real32)(FPSTimer.DeltaTicks / 1000.0f), 20);
+            UpdatePhysicsWorld2d(Game->World, (real32)(FPSTimer->DeltaTicks / 1000.0f), 20);
             
-			DeleteOutofReachPhysicsBodies(&Game);
+			DeleteOutofReachPhysicsBodies(Game);
 			
-            ClearRenderer(Game.Renderer, GRAY);
+            ClearRenderer(Game->Renderer, GRAY);
             
             // NOTE: Render all the physics bodies
-            for(int i=0; i<Game.World->Bodies.size(); i++)
+            for(int i=0; i<Game->World->BodyCount; i++)
             {
                 real32 Width, Height;
-                if(Game.World->Bodies[i].Shape == CIRCLE)
+                if(Game->World->Bodies[i].Shape == CIRCLE)
                 {
-                    Width = 2.0f * Game.World->Bodies[i].Radius;
-                    Height = 2.0f * Game.World->Bodies[i].Radius;
+                    Width = 2.0f * Game->World->Bodies[i].Radius;
+                    Height = 2.0f * Game->World->Bodies[i].Radius;
                 }
                 else
                 {
-                    Width = Game.World->Bodies[i].Width;
-                    Height = Game.World->Bodies[i].Height;
+                    Width = Game->World->Bodies[i].Width;
+                    Height = Game->World->Bodies[i].Height;
                 }
                 
                 
-                if(IsVisible(Game.World->Bodies[i].Position.x, Game.World->Bodies[i].Position.y, 
-                             Width, Height, &Game.Camera))
+                if(IsVisible(Game->World->Bodies[i].Position.x, Game->World->Bodies[i].Position.y, 
+                             Width, Height, &Game->Camera))
                 {
-                    if(Game.World->Bodies[i].IsStatic)
-                        RenderPhysicsBody(Game.Renderer, 
-										  &Game.World->Bodies[i], 
-										  &Game.Camera, 
-                                          YELLOW, BLACK);
-                    else
-					{
-						RenderPhysicsBody(Game.Renderer, 
-										  &Game.World->Bodies[i], 
-										  &Game.Camera, 
-                                          BLACK, WHITE);
-					}
+                    RenderPhysicsBody(Game->Renderer, 
+									  &Game->World->Bodies[i], 
+									  &Game->Camera, 
+									  Game->BodyColors[i], 
+									  WHITE, 
+									  Game->HighlightCollisions);
                 }
             }
 			
-			for(int i=0; i<Game.World->ContactPoints.size(); i++)
+#if 0
+			for(int i=0; i<Game->World->ContactPointsCount; i++)
 			{
-				vec2 ContactPoint = Game.World->ContactPoints.data()[i];
-				uint32 X = RoundReal32ToUint32((ContactPoint.x - Game.Camera.Position.x) * Game.Camera.Zoom + (Game.Camera.Width / 2.0f));
-				uint32 Y = RoundReal32ToUint32((ContactPoint.y - Game.Camera.Position.y) * Game.Camera.Zoom + (Game.Camera.Height / 2.0f));
+				vec2 ContactPoint = Game->World->ContactPoints[i];
+				uint32 X = RoundReal32ToUint32((ContactPoint.x - Game->Camera.Position.x) * Game->Camera.Zoom + (Game->Camera.Width / 2.0f));
+				uint32 Y = RoundReal32ToUint32((ContactPoint.y - Game->Camera.Position.y) * Game->Camera.Zoom + (Game->Camera.Height / 2.0f));
 				
-				uint32 Radius = RoundReal32ToUint32(2.0f * Game.Camera.Zoom);
+				uint32 Radius = RoundReal32ToUint32(2.0f * Game->Camera.Zoom);
 				
-				RenderFilledCircle(Game.Renderer, X, Y, Radius, RED);
+				RenderFilledCircle(Game->Renderer, X, Y, Radius, RED);
 			}
+#endif
 			
             
             // NOTE: Camera Info display
             {
                 char buf[256] = {};
-                sprintf_s(buf, "CamX: %0.3f, CamY: %0.3f, Zoom: %0.3f", Game.Camera.Position.x, Game.Camera.Position.y, Game.Camera.Zoom);
-                RenderTextFromCenter(Game.Renderer,
+                sprintf_s(buf, "CamX: %0.3f, CamY: %0.3f, Zoom: %0.3f", Game->Camera.Position.x, Game->Camera.Position.y, Game->Camera.Zoom);
+                
+				RenderTextFromCenter(Game->Renderer,
 									 SCREEN_WIDTH / 2,
                                      PADDING_20,
                                      buf,
-                                     Game.Font,
+                                     Game->Font,
                                      WHITE,
 									 40);
             }
@@ -698,21 +742,22 @@ main(int argc, char* args[])
             // NOTE: FPS Display
             {
                 char buf[256] = {};
-                sprintf_s(buf, "FPS: %d, Total Physics Bodies: %ld", GetFPS(&FPSTimer), Game.World->Bodies.size());
-                RenderTextFromCenter(Game.Renderer,
+                sprintf_s(buf, "FPS: %d, Total Physics Bodies: %d", GetFPS(FPSTimer), Game->World->BodyCount);
+                
+				RenderTextFromCenter(Game->Renderer,
 									 SCREEN_WIDTH / 2,
                                      SCREEN_HEIGHT - PADDING_20,
                                      buf,
-                                     Game.Font,
+                                     Game->Font,
                                      WHITE,
 									 40);
             }
             
-            SDL_RenderPresent(Game.Renderer);
+            SDL_RenderPresent(Game->Renderer);
         }
     }
     
-    CloseGame(&Game);
+    CloseGame(Game);
     
     return 0;
 }

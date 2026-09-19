@@ -51,12 +51,6 @@ typedef double real64;
 
 #define ARRAY_COUNT(arr) (sizeof(arr) / sizeof((arr)[0]))
 
-#define Kilobytes(Value) (Value * 1024LL)
-#define Megabytes(Value) (Kilobytes(Value) * 1024LL)
-#define Gigabytes(Value) (Megabytes(Value) * 1024LL)
-#define Terabytes(Value) (Gigabytes(Value) * 1024LL)
-
-
 #define MIN(A, B) ((A < B) ? A : B)
 
 #define MAX(A, B) ((A > B) ? A : B)
@@ -87,5 +81,8 @@ __LogMessage(stdout, __FILE__, __LINE__, "WARNING", MSG, ##__VA_ARGS__)
 #define LOG_INFO(MSG, ...) \
 __LogMessage(stdout, __FILE__, __LINE__, "INFO", MSG, ##__VA_ARGS__)
 
+#define MAX_BODIES 4096
+#define MAX_COLLISION_MANIFOLDS 100000
+#define MAX_CONTACT_POINTS 100000
 
 #endif //DEFINES_H

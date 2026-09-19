@@ -458,13 +458,15 @@ ResolveCollision(collision_manifold* CollisionManifold)
 }
 
 #include<cmath>
-// NOTE: IMPORTANT TEMP FUNCTION, REPLACE WITH MEMORY ARENA ARRAY ASAP!!
-bool32 ContainsContact(const std::vector<vec2>& Contacts, const vec2& Target)
+bool32 
+ContainsContact(vec2* Contacts, uint32 ContactsCount, vec2 Target)
 {
     const float Epsilon = 0.0001f;
     
-    for (const vec2& C : Contacts)
+    for (uint32 i = 0; i < ContactsCount; i++)
     {
+		vec2 C = Contacts[i];
+		// TODO: Remove ABS
         if (std::abs(Target.x - C.x) < Epsilon && 
             std::abs(Target.y - C.y) < Epsilon)
         {
@@ -480,14 +482,15 @@ UpdatePhysicsWorld2d(physics_world2D* World, real32 ElapsedTime, int Iterations)
 {
 	Iterations = Clamp(Iterations, World->MinIteration, World->MaxIteration);
 	
-	World->ContactPoints.clear();
+	// TODO: Replace array with linkedlist
+	World->ContactPointsCount = 0;
 	
 	real32 SubStepTime = ElapsedTime / Iterations;
 	
 	for(int it=1; it<Iterations; it++)
 	{
 		// NOTE: Movement step
-		for(int i=0; i<World->Bodies.size(); i++)
+		for(int i=0; i<World->BodyCount; i++)
 		{
 			ApplyGravity(&World->Bodies[i],
 						 World->Gravity, 
@@ -502,31 +505,39 @@ UpdatePhysicsWorld2d(physics_world2D* World, real32 ElapsedTime, int Iterations)
 			World->Bodies[i].Force = vec(0.0f, 0.0f);
 		}
 		
+		// NOTE: Precalculate AABBs to avoid O(N^2) recalculations
+		AABB CachedAABBs[1000];
+		for(int i=0; i<World->BodyCount; i++)
+		{
+			CachedAABBs[i] = GetAABBFromPhysicsBody(&World->Bodies[i]);
+		}
+		
 		// NOTE: Reset collision state
-		for(int i=0; i<World->Bodies.size(); i++)
+		for(int i=0; i<World->BodyCount; i++)
 		{
 			World->Bodies[i].IsCollided = false;
 		}
 		
-		World->CollisionManifolds.clear();
+		// TODO: Replace with linked list data structure
+		World->CollisionManifoldsCount = 0;
 		
 		// NOTE: Collide step
-		for(int i=0; i<World->Bodies.size()-1; i++)
+		for(int i=0; i<World->BodyCount-1; i++)
 		{
 			physics_body2D* BodyA = &World->Bodies[i];
-			AABB BodyA_AABB = GetAABBFromPhysicsBody(BodyA);
+			AABB BodyA_AABB = CachedAABBs[i];
 			
-			for(int j=i+1; j<World->Bodies.size(); j++)
+			for(int j=i+1; j<World->BodyCount; j++)
 			{
 				physics_body2D* BodyB = &World->Bodies[j];
-				AABB BodyB_AABB = GetAABBFromPhysicsBody(BodyB);
+				AABB BodyB_AABB = CachedAABBs[j];
 				
-				if(!IntersectAABBs(BodyA_AABB, BodyB_AABB))
+				if(BodyA->IsStatic && BodyB->IsStatic)
 				{
 					continue;
 				}
 				
-				if(BodyA->IsStatic && BodyB->IsStatic)
+				if(!IntersectAABBs(BodyA_AABB, BodyB_AABB))
 				{
 					continue;
 				}
@@ -569,26 +580,28 @@ UpdatePhysicsWorld2d(physics_world2D* World, real32 ElapsedTime, int Iterations)
 												Contact2,
 												ContactPoints);
 					
-					World->CollisionManifolds.push_back(CollisionManifold);
+					World->CollisionManifolds[World->CollisionManifoldsCount++] = CollisionManifold;
 				}
 			}
 			
-			for(int i=0; i<World->CollisionManifolds.size(); i++)
+			for(int i=0; i<World->CollisionManifoldsCount; i++)
 			{
-				collision_manifold CollisionManifold = World->CollisionManifolds.data()[i];
+				collision_manifold CollisionManifold = World->CollisionManifolds[i];
 				ResolveCollision(&CollisionManifold);
 				
 				if(CollisionManifold.ContactCount > 0)
 				{
-					if(!ContainsContact(World->ContactPoints, CollisionManifold.Contact1))
+					if(!ContainsContact(World->ContactPoints, World->ContactPointsCount, CollisionManifold.Contact1))
 					{
-						World->ContactPoints.push_back(CollisionManifold.Contact1);
+						if (World->ContactPointsCount < MAX_CONTACT_POINTS)
+							World->ContactPoints[World->ContactPointsCount++] = CollisionManifold.Contact1;
 					}
 					
 					if(CollisionManifold.ContactCount > 1)
-						if(!ContainsContact(World->ContactPoints, CollisionManifold.Contact2))
+						if(!ContainsContact(World->ContactPoints, World->ContactPointsCount, CollisionManifold.Contact2))
 					{
-						World->ContactPoints.push_back(CollisionManifold.Contact2);
+						if (World->ContactPointsCount < MAX_CONTACT_POINTS)
+							World->ContactPoints[World->ContactPointsCount++]  = CollisionManifold.Contact2;
 					}
 				}
 			}
