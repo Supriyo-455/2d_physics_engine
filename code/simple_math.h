@@ -41,6 +41,7 @@ Equals(real32 A, real32 B)
 inline real32 
 Sin(real32 x)
 {
+#if 0
     real32 sign = 1;
     if (x < 0)
     {
@@ -61,11 +62,15 @@ Sin(real32 x)
     }
     
     return sign * res;
+#else
+	return sinf(x);
+#endif
 }
 
 inline real32 
 Cos(real32 x)
 {
+#if 0
     if (x < 0)
         x = -x;
     if (x > 360)
@@ -81,6 +86,9 @@ Cos(real32 x)
         term *= -x * x / k / (k - 1);
     }
     return res;
+#else
+	return cosf(x);
+#endif
 }
 
 int
@@ -697,9 +705,9 @@ inline real32 LinearTosRGB(real32 L)
 }
 
 // TODO: Research more on random numbers and different types of noise functions
-#include<immintrin.h>
 // TODO: These function will only work on x86 processors, need to add support for ARM in future
-bool32 GetRealRandomNumber(uint32* Result)
+bool32 
+GetRealRandomNumber(uint32* Result)
 {
     bool32 Failures = 0;
     int c;
@@ -712,19 +720,22 @@ bool32 GetRealRandomNumber(uint32* Result)
     return Failures;
 }
 
-void InitializeRandomNumbers()
+void 
+InitializeRandomNumbers()
 {
     uint32 Seed = 0;
     GetRealRandomNumber(&Seed);
     srand(Seed);
 }
 
-inline real32 RandomUnilateral()
+inline real32 
+RandomUnilateral()
 {
     return rand() / (real32) RAND_MAX;
 }
 
-inline real32 RandomBilateral()
+inline real32 
+RandomBilateral()
 {
     return 2.0f * RandomUnilateral() - 1.0f;
 }

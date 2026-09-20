@@ -3,8 +3,8 @@ CreateTransform2D(vec2 Pos, real32 Angle)
 {
     transform2D Result = {};
     
-    Result.Cos = cosf(Angle);
-    Result.Sin = sinf(Angle);
+    Result.Cos = Cos(Angle);
+    Result.Sin = Sin(Angle);
     Result.PosX = Pos.x;
     Result.PosY = Pos.y;
     
@@ -16,8 +16,8 @@ CreateTransform2D(real32 PosX, real32 PosY, real32 Angle)
 {
     transform2D Result = {};
     
-    Result.Cos = cosf(Angle);
-    Result.Sin = sinf(Angle);
+    Result.Cos = Cos(Angle);
+    Result.Sin = Sin(Angle);
     Result.PosX = PosX;
     Result.PosY = PosY;
     

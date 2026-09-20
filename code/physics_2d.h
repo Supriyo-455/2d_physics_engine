@@ -4,8 +4,6 @@
 #define PHYSICS2_D_H
 
 #include "simple_math.h"
-#include <algorithm>
-#include <vector>
 
 #include "memory.h"
 #include "transform_2d.h"
@@ -23,12 +21,15 @@ physics_world2D
 	physics_body2D* Bodies;
 	uint32 BodyCount;
 	
+	// TODO: Store collision manifold in physics body itself, not in world
 	collision_manifold* CollisionManifolds;
 	uint32 CollisionManifoldsCount;
 	
+	// TODO: Store Contact points in physics body itself, not in world
 	vec2* ContactPoints;
 	uint32 ContactPointsCount;
 	
+	// TODO: Store Cached AABB information in physics body itself, not in world
 	AABB* CachedAABBs;
 	
 	inline local_persist const real32 ForceMultiplier = 1000.0f;

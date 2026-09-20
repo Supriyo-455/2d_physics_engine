@@ -55,14 +55,17 @@ CreateCirclePhysicsBody2D(physics_world2D* World, vec2 Position, real32 Radius, 
     Body.Shape = CIRCLE;
     Body.Radius = Radius;
     Body.Force = vec(0.0f, 0.0f);
+	Body.Inertia = (1.0f / 2.0f) * Body.Mass * Body.Radius * Body.Radius;
     
     if(!Body.IsStatic)
     {
         Body.InvMass = 1.0f / Body.Mass;
+		Body.InvIntertia = 1.0f / Body.Inertia;
     }
     else
     {
         Body.InvMass = 0.0f;
+		Body.InvIntertia = 0.0f;
     }
     
     Assert(IsPhysicsBodyValid(World, &Body));
@@ -112,13 +115,18 @@ CreateBoxPhysicsBody2D(physics_world2D* World, vec2 Position, real32 Width, real
     Body.Triangles[4] = 3;
     Body.Triangles[5] = 0;
     
+	Body.Inertia = (1.0f / 12.0f) * Body.Mass 
+		* (Body.Width * Body.Width + Body.Height * Body.Height);
+	
     if(!Body.IsStatic)
     {
         Body.InvMass = 1.0f / Body.Mass;
+		Body.InvIntertia = 1.0f / Body.InvIntertia;
     }
     else
     {
         Body.InvMass = 0.0f;
+		Body.InvIntertia = 0;
     }
     
     Assert(IsPhysicsBodyValid(World, &Body));
@@ -131,7 +139,9 @@ vec2 FindPolygonCenter(vec2* Vertices, int VerticesCount)
     real32 SumX = 0.0f;
     real32 SumY = 0.0f;
     
-    for(int i=0; i<VerticesCount; i++)
+    for(int i = 0; 
+		i < VerticesCount; 
+		i++)
     {
         vec2 V = Vertices[i];
         SumX += V.x;
@@ -148,7 +158,9 @@ GetPhysicsBodyTransformedVertices(physics_body2D* Body)
     {
         transform2D SavedTransform = CreateTransform2D(Body->Position, Body->Rotation);
         
-        for(int i=0; i<ARRAY_COUNT(Body->Vertices); i++)
+        for(int i = 0; 
+			i < ARRAY_COUNT(Body->Vertices); 
+			i++)
         {
             Body->TransformedVertices[i] = Transform(Body->Vertices[i], SavedTransform);
         }
@@ -164,7 +176,9 @@ ProjectVertices(vec2* Vertices, int VerticesCount, vec2 Axis, real32* Min, real3
     *Min = FLT_MAX;
     *Max = FLT_MIN;
     
-    for(int i=0; i<VerticesCount; i++)
+    for(int i = 0; 
+		i < VerticesCount; 
+		i++)
     {
         vec2 V = Vertices[i];
         real32 Proj = Dot(V, Axis);
@@ -200,7 +214,9 @@ FindClosestVertexOnPolygon(vec2 CircleCenter, vec2* PolygonVertices, int Polygon
     int Result = -1;
     real32 MinDistance = FLT_MAX;
     
-    for(int i=0; i<PolygonVerticesCount; i++)
+    for(int i = 0; 
+		i < PolygonVerticesCount; 
+		i++)
     {
         vec2 V = PolygonVertices[i];
         real32 D = Distance(V, CircleCenter);

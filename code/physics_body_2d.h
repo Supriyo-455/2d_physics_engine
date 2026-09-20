@@ -27,7 +27,9 @@ physics_body2D
     real32 Area;
     
     vec2 Force;
-    
+    real32 Inertia;
+	real32 InvIntertia;
+	
     bool32 IsStatic;
     bool32 IsCollided;
     

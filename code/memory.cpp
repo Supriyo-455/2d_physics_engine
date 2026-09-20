@@ -1,5 +1,6 @@
 #include "memory.h"
 
+// TODO: Use SIMD
 void 
 ZeroSize(uint64 Size, void* Ptr)
 {
@@ -11,6 +12,7 @@ ZeroSize(uint64 Size, void* Ptr)
     }
 }
 
+// TODO: Use SIMD
 void 
 MemoryCopy(uint64 Size, void *SourceInit, void *DestInit)
 {

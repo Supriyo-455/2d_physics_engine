@@ -372,7 +372,7 @@ InitializeEngine(game* Game)
                 }
                 else
                 {
-                    Game->Font = TTF_OpenFont("assets/font/Lightweight.ttf", 128);
+                    Game->Font = TTF_OpenFont("assets/font/Consolas-Regular.ttf", 128);
                     if (Game->Font == NULL)
                     {
                         LOG_ERROR("Failed to load lazy font! SDL_ttf Error: %s\n", TTF_GetError());
@@ -432,7 +432,7 @@ ZoomCamera(simple_camera* Camera, real32 ZoomXPos, real32 ZoomYPos, int32 ZoomWe
     real32 WorldXBefore = Camera->Position.x + (OffsetX / Camera->Zoom);
     real32 WorldYBefore = Camera->Position.y + (OffsetY / Camera->Zoom);
     
-    if(ZoomWeight > 0)
+	if(ZoomWeight > 0)
         Camera->Zoom *= 1.1f;
     else
         Camera->Zoom /= 1.1f;
@@ -443,6 +443,14 @@ ZoomCamera(simple_camera* Camera, real32 ZoomXPos, real32 ZoomYPos, int32 ZoomWe
     
     Camera->Position.x = WorldXBefore - (OffsetX / Camera->Zoom);
     Camera->Position.y = WorldYBefore - (OffsetY / Camera->Zoom);
+}
+
+
+void
+AddPhysicsBodyToGameWithRandomColor(game* Game, physics_body2D Body)
+{
+	Game->World->Bodies[Game->World->BodyCount++] = Body;
+	Game->BodyColors[Game->BodyColorsCount++] = GenerateRandomColor();
 }
 
 void
@@ -483,10 +491,12 @@ HandleInput(game* Game)
 					
 					vec2 MousePos = GetRelativeWorldPosition(&Game->Camera, (real32)MouseX, (real32)MouseY); 
 					
-					physics_body2D Body = CreateCirclePhysicsBody2D(Game->World, vec(MousePos.x, MousePos.y), 10.0f, 0.6f, 0.90f, false);
-					
-					Game->World->Bodies[Game->World->BodyCount++] = Body;
-					Game->BodyColors[Game->BodyColorsCount++] = GenerateRandomColor();
+					if(Game->World->BodyCount < MAX_BODIES)
+					{
+						physics_body2D Body = CreateCirclePhysicsBody2D(Game->World, vec(MousePos.x, MousePos.y), 10.0f, 0.6f, 0.90f, false);
+						
+						AddPhysicsBodyToGameWithRandomColor(Game, Body);
+					}
 					
 					break;
                 }
@@ -502,8 +512,7 @@ HandleInput(game* Game)
 					{
 						physics_body2D Body = CreateBoxPhysicsBody2D(Game->World, vec(MousePos.x, MousePos.y), 20.0f, 20.0f, 0.6f, 0.60f, false);
 						
-						Game->World->Bodies[Game->World->BodyCount++] = Body;
-						Game->BodyColors[Game->BodyColorsCount++] = GenerateRandomColor();
+						AddPhysicsBodyToGameWithRandomColor(Game, Body);
 					}
 					
 					break;
@@ -511,8 +520,8 @@ HandleInput(game* Game)
                 
                 case SDLK_r:
                 {
-					Game->World->BodyCount = 1;
-					Game->BodyColorsCount = 1;
+					Game->World->BodyCount = 3;
+					Game->BodyColorsCount = 3;
                     break;
                 }
                 
@@ -563,6 +572,7 @@ InitializeGame(game* Game)
 	InitializeRandomNumbers();
 	
 	Game->Running = true;
+	
 	Game->dx = 0.0f;
 	Game->dy = 0.0f;
 	Game->Speed = 100.0f;
@@ -578,9 +588,9 @@ InitializeGame(game* Game)
 	Game->Camera.MaxZoom = 10.0f;
 	Game->Camera.MinZoom = 1.00f;
 	
-	Game->World = PushStruct(Game->MemoryArena, physics_world2D);
-	
 	Game->BodyColors = PushArray(Game->MemoryArena, MAX_BODIES, vec4);
+	
+	Game->World = PushStruct(Game->MemoryArena, physics_world2D);
 	Game->World->Bodies = PushArray(Game->MemoryArena, MAX_BODIES, physics_body2D);
 	Game->World->ContactPoints = PushArray(Game->MemoryArena, MAX_CONTACT_POINTS, vec2);
 	Game->World->CollisionManifolds = PushArray(Game->MemoryArena, MAX_COLLISION_MANIFOLDS, collision_manifold);
@@ -588,19 +598,35 @@ InitializeGame(game* Game)
 		PushArray(Game->MemoryArena, MAX_CACHED_AABB, AABB);
 	
 	physics_body2D BottomPlatform = CreateBoxPhysicsBody2D(Game->World,
-														   vec(SCREEN_WIDTH / 2.0f, SCREEN_HEIGHT - (PADDING_20 / 2.0f)),
-														   SCREEN_WIDTH,
+														   vec(SCREEN_WIDTH / 2.0f, SCREEN_HEIGHT - 6.0f * PADDING_20),
+														   SCREEN_WIDTH / 2,
 														   PADDING_20 + 1.0f,
 														   0.5f,
 														   0.5f,
 														   true);
 	
-	Game->World->Bodies[Game->World->BodyCount++] = BottomPlatform;
-	Game->BodyColors[Game->BodyColorsCount++] = GenerateRandomColor();
+	BottomPlatform.Rotation = PI / 9;
+	AddPhysicsBodyToGameWithRandomColor(Game, BottomPlatform);
 	
-	// physics_body2D Player = CreateCirclePhysicsBody2D(Game->World, vec(SCREEN_WIDTH/2, SCREEN_HEIGHT/2), 10.0f, 0.6f, 0.50f, false);
+	physics_body2D LeftPaddle = CreateBoxPhysicsBody2D(Game->World,
+													   vec(SCREEN_WIDTH / 2.5f, SCREEN_HEIGHT / 2.0f),
+													   SCREEN_WIDTH / 4.0f,
+													   PADDING_20 + 1.0f,
+													   0.5f,
+													   0.5f,
+													   true);
+	LeftPaddle.Rotation = PI / 4;
+	AddPhysicsBodyToGameWithRandomColor(Game, LeftPaddle);
 	
-	// Game->World->Bodies.push_back(Player);
+	physics_body2D RightPaddle = CreateBoxPhysicsBody2D(Game->World,
+														vec(SCREEN_WIDTH / 1.5f, SCREEN_HEIGHT / 2.0f),
+														SCREEN_WIDTH / 4.0f,
+														PADDING_20 + 1.0f,
+														0.5f,
+														0.5f,
+														true);
+	RightPaddle.Rotation = -PI / 4;
+	AddPhysicsBodyToGameWithRandomColor(Game, RightPaddle);
 }
 
 void
@@ -718,7 +744,7 @@ main(int argc, char* args[])
                 }
             }
 			
-#if 1
+#if 0
 			for(int i = 0; 
 				i < Game->World->ContactPointsCount; 
 				i++)
@@ -733,7 +759,7 @@ main(int argc, char* args[])
 			}
 #endif
 			
-            
+            // TODO: Use temporary memory arena to store string value
             // NOTE: Camera Info display
             {
                 char buf[256] = {};
@@ -745,10 +771,10 @@ main(int argc, char* args[])
                                      buf,
                                      Game->Font,
                                      WHITE,
-									 40);
+									 30);
             }
             
-            
+            // TODO: Use temporary memory arena to store string value
             // NOTE: FPS Display
             {
                 char buf[256] = {};
@@ -760,7 +786,7 @@ main(int argc, char* args[])
                                      buf,
                                      Game->Font,
                                      WHITE,
-									 40);
+									 30);
             }
 			
 #if 0
