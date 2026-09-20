@@ -3,14 +3,6 @@
 #ifndef COLLISION_2D_H
 #define COLLISION_2D_H
 
-
-struct
-AABB
-{
-	vec2 Max;
-	vec2 Min;
-};
-
 struct
 collision_manifold
 {

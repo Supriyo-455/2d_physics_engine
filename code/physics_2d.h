@@ -29,9 +29,6 @@ physics_world2D
 	vec2* ContactPoints;
 	uint32 ContactPointsCount;
 	
-	// TODO: Store Cached AABB information in physics body itself, not in world
-	AABB* CachedAABBs;
-	
 	inline local_persist const real32 ForceMultiplier = 1000.0f;
     
 	inline local_persist const int MaxIteration = 64;

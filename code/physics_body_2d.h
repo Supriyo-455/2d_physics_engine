@@ -10,30 +10,18 @@ shape
     BOX = 1
 };
 
+struct
+AABB
+{
+	vec2 Max;
+	vec2 Min;
+};
+
 // TODO: Cache AABB information?
 struct
 physics_body2D
 {
-    vec2 LinearVelocity;
-    vec2 Position;
-    
-    real32 Rotation;
-    real32 RotationalVelocity;
-    
-    real32 Mass;
-    real32 InvMass;
-    real32 Density;
-    real32 Restitution;
-    real32 Area;
-    
-    vec2 Force;
-    real32 Inertia;
-	real32 InvIntertia;
-	
-    bool32 IsStatic;
-    bool32 IsCollided;
-    
-    shape Shape;
+	shape Shape;
     
     // NOTE: This informations will change based on shape
     real32 Radius;
@@ -47,6 +35,28 @@ physics_body2D
     
     // NOTE: 2 triangles, each has 3 vertices
     int Triangles[6];
+	
+	vec2 LinearVelocity;
+    vec2 Position;
+    
+    real32 Angle;
+    real32 AngularVelocity;
+    
+    real32 Mass;
+    real32 InvMass;
+    real32 Density;
+    real32 Restitution;
+    real32 Area;
+    
+    vec2 Force;
+    real32 Inertia;
+	real32 InvIntertia;
+	
+	AABB Aabb;
+	bool32 AabbUpdateRequired;
+	
+    bool32 IsStatic;
+    bool32 IsCollided;
 };
 
 #endif //PHYSICS_BODY_H

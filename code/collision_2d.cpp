@@ -20,53 +20,6 @@ CreateCollisionManifold(physics_body2D* A,
 	return CollisionManifold;
 }
 
-inline AABB
-GetAABBFromPhysicsBody(physics_body2D* Body)
-{
-	real32 MinX = FLT_MAX;
-	real32 MaxX = FLT_MIN;
-	real32 MinY = FLT_MAX;
-	real32 MaxY = FLT_MIN;
-	
-	AABB Result = {};
-	
-    if(Body->Shape == CIRCLE)
-    {
-		MinX = Body->Position.x - Body->Radius;
-		MinY = Body->Position.y - Body->Radius;
-		
-		MaxX = Body->Position.x + Body->Radius;
-		MaxY = Body->Position.y + Body->Radius;
-    }
-    else if(Body->Shape == BOX)
-    {
-		vec2* PolygonVerts = GetPhysicsBodyTransformedVertices(Body);
-		int PolygonVertsCount = ARRAY_COUNT(Body->Vertices);
-		
-		for(int i = 0; 
-			i < PolygonVertsCount; 
-			i++)
-		{
-			vec2 V = PolygonVerts[i];
-			
-			if(V.x < MinX) MinX = V.x;
-			if(V.x > MaxX) MaxX = V.x;
-			
-			if(V.y < MinY) MinY = V.y;
-			if(V.y > MaxY) MaxY = V.y;
-		}
-    }
-	else
-	{
-		LOG_ERROR("unknown shaped physics body!");
-	}
-	
-	Result.Min = vec(MinX, MinY);
-	Result.Max = vec(MaxX, MaxY);
-    
-    return Result;
-}
-
 bool32
 IntersectAABBs(AABB BodyA_AABB, AABB BodyB_AABB)
 {
@@ -619,14 +572,6 @@ UpdatePhysicsWorld2d(physics_world2D* World, real32 ElapsedTime, int Iterations)
 			World->Bodies[i].Force = vec(0.0f, 0.0f);
 		}
 		
-		// NOTE: Precalculate AABBs to avoid O(N^2) recalculations
-		for(int i = 0; 
-			i < World->BodyCount; 
-			i++)
-		{
-			World->CachedAABBs[i] = GetAABBFromPhysicsBody(&World->Bodies[i]);
-		}
-		
 		// NOTE: Reset collision state
 		for(int i = 0; 
 			i < World->BodyCount; 
@@ -644,14 +589,14 @@ UpdatePhysicsWorld2d(physics_world2D* World, real32 ElapsedTime, int Iterations)
 			i++)
 		{
 			physics_body2D* BodyA = &World->Bodies[i];
-			AABB BodyA_AABB = World->CachedAABBs[i];
+			AABB BodyA_AABB = GetAABBFromPhysicsBody(&World->Bodies[i]);
 			
 			for(int j = i + 1; 
 				j < World->BodyCount; 
 				j++)
 			{
 				physics_body2D* BodyB = &World->Bodies[j];
-				AABB BodyB_AABB = World->CachedAABBs[j];
+				AABB BodyB_AABB = GetAABBFromPhysicsBody(&World->Bodies[j]);
 				
 				if(BodyA->IsStatic && BodyB->IsStatic)
 				{

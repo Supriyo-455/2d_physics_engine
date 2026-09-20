@@ -39,14 +39,14 @@ IsPhysicsBodyValid(physics_world2D* World, physics_body2D* Body)
 physics_body2D 
 CreateCirclePhysicsBody2D(physics_world2D* World, vec2 Position, real32 Radius, real32 Density, real32 Restitution = 0.0f, bool32 IsStatic = false)
 {   
-    physics_body2D Body = {0};
+    physics_body2D Body = {};
     real32 Area = PI * Radius * Radius;
     real32 Mass = Density * Area;
     
-    Body.RotationalVelocity = 0.0f;
+    Body.AngularVelocity = 0.0f;
     Body.LinearVelocity = vec(0.0f, 0.0f);
     Body.Position = Position;
-    Body.Rotation = 0.0f;
+    Body.Angle = 0.0f;
     Body.Mass = Mass;
     Body.Density = Density;
     Body.Restitution = Clamp(Restitution, 0.0f, 1.0f);
@@ -76,14 +76,14 @@ CreateCirclePhysicsBody2D(physics_world2D* World, vec2 Position, real32 Radius, 
 physics_body2D 
 CreateBoxPhysicsBody2D(physics_world2D* World, vec2 Position, real32 Width, real32 Height, real32 Density, real32 Restitution = 0.0f, bool32 IsStatic = false)
 {   
-    physics_body2D Body = {0};
+    physics_body2D Body = {};
     real32 Area = Width * Height;
     real32 Mass = Density * Area;
     
-    Body.RotationalVelocity = 0.0f;
+    Body.AngularVelocity = 0.0f;
     Body.LinearVelocity = vec(0.0f, 0.0f);
     Body.Position = Position;
-    Body.Rotation = 0.0f;
+    Body.Angle = 0.0f;
     Body.Mass = Mass;
     Body.Density = Density;
     Body.Restitution = Clamp(Restitution, 0.0f, 1.0f);
@@ -105,8 +105,8 @@ CreateBoxPhysicsBody2D(physics_world2D* World, vec2 Position, real32 Width, real
     Body.Vertices[2] = vec( HalfWidth,  HalfHeight); // Bottom-Right
     Body.Vertices[3] = vec( HalfWidth, -HalfHeight); // Top-Right
     
-    memset(Body.TransformedVertices, 0, sizeof(Body.TransformedVertices));
-    Body.TransformUpdateRequired = true;
+    ZeroSize(sizeof(Body.TransformedVertices), Body.TransformedVertices);
+	Body.TransformUpdateRequired = true;
     
     Body.Triangles[0] = 0;
     Body.Triangles[1] = 1;
@@ -129,6 +129,9 @@ CreateBoxPhysicsBody2D(physics_world2D* World, vec2 Position, real32 Width, real
 		Body.InvIntertia = 0;
     }
     
+	Body.Aabb = {};
+	Body.AabbUpdateRequired = false;
+	
     Assert(IsPhysicsBodyValid(World, &Body));
     
     return Body;
@@ -156,7 +159,7 @@ GetPhysicsBodyTransformedVertices(physics_body2D* Body)
 {
     if(Body->TransformUpdateRequired)
     {
-        transform2D SavedTransform = CreateTransform2D(Body->Position, Body->Rotation);
+        transform2D SavedTransform = CreateTransform2D(Body->Position, Body->Angle);
         
         for(int i = 0; 
 			i < ARRAY_COUNT(Body->Vertices); 
@@ -168,6 +171,54 @@ GetPhysicsBodyTransformedVertices(physics_body2D* Body)
     }
     
     return Body->TransformedVertices;
+}
+
+inline AABB
+GetAABBFromPhysicsBody(physics_body2D* Body)
+{
+	if(Body->AabbUpdateRequired)
+	{
+		real32 MinX = FLT_MAX;
+		real32 MaxX = FLT_MIN;
+		real32 MinY = FLT_MAX;
+		real32 MaxY = FLT_MIN;
+		
+		if(Body->Shape == CIRCLE)
+		{
+			MinX = Body->Position.x - Body->Radius;
+			MinY = Body->Position.y - Body->Radius;
+			
+			MaxX = Body->Position.x + Body->Radius;
+			MaxY = Body->Position.y + Body->Radius;
+		}
+		else if(Body->Shape == BOX)
+		{
+			vec2* PolygonVerts = GetPhysicsBodyTransformedVertices(Body);
+			int PolygonVertsCount = ARRAY_COUNT(Body->Vertices);
+			
+			for(int i = 0; 
+				i < PolygonVertsCount; 
+				i++)
+			{
+				vec2 V = PolygonVerts[i];
+				
+				if(V.x < MinX) MinX = V.x;
+				if(V.x > MaxX) MaxX = V.x;
+				
+				if(V.y < MinY) MinY = V.y;
+				if(V.y > MaxY) MaxY = V.y;
+			}
+		}
+		else
+		{
+			LOG_ERROR("unknown shaped physics body!");
+		}
+		
+		Body->Aabb.Min = vec(MinX, MinY);
+		Body->Aabb.Max = vec(MaxX, MaxY);
+	}
+	
+	return Body->Aabb;
 }
 
 void
@@ -236,13 +287,15 @@ MovePhysicsBody(physics_body2D* Body, real32 ElapsedTime)
 {
     Body->Position = Body->Position + Body->LinearVelocity * ElapsedTime;
     Body->TransformUpdateRequired = true;
+	Body->AabbUpdateRequired = true;
 }
 
 inline void
 RotatePhysicsBody(physics_body2D* Body, real32 ElapsedTime)
 {
-    Body->Rotation = Body->Rotation + Body->RotationalVelocity * ElapsedTime;
+    Body->Angle = Body->Angle + Body->AngularVelocity * ElapsedTime;
     Body->TransformUpdateRequired = true;
+	Body->AabbUpdateRequired = true;
 }
 
 inline void
@@ -253,6 +306,7 @@ ApplyForce(physics_body2D* Body, real32 ElapsedTime)
         vec2 Acceleration = Body->Force * Body->InvMass;
         Body->LinearVelocity = Body->LinearVelocity + Acceleration * ElapsedTime;
         Body->TransformUpdateRequired = true;
+		Body->AabbUpdateRequired = true;
     }
 }
 
@@ -264,6 +318,6 @@ ApplyGravity(physics_body2D* Body, vec2 Gravity, real32 ForceMultiplier, real32 
         vec2 Acceleration = Gravity * Body->InvMass * ForceMultiplier;
         Body->LinearVelocity = Body->LinearVelocity + Acceleration * ElapsedTime;
         Body->TransformUpdateRequired = true;
+		Body->AabbUpdateRequired = true;
     }
 }
-

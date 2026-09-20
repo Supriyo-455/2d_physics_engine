@@ -292,21 +292,21 @@ RenderPhysicsBody(SDL_Renderer* Renderer,
 }
 
 vec4
-GenerateRandomColor()
+GenerateDarkRandomColor()
 {
-	real32 R = RandomUnilateral();
-	real32 G = RandomUnilateral();
-	real32 B = RandomUnilateral();
+	real32 R = 0.5f * RandomUnilateral();
+	real32 G = 0.5f * RandomUnilateral();
+	real32 B = 0.5f * RandomUnilateral();
 	
 	return vec(R, G, B, 1.0f);
 }
 
 void 
-GenerateRandomColors(vec4* ColorArray, int ArrayCount)
+GenerateDarkRandomColors(vec4* ColorArray, int ArrayCount)
 {
     for(int i=0; i<ArrayCount; i++)
     {
-        ColorArray[i] = GenerateRandomColor();
+        ColorArray[i] = GenerateDarkRandomColor();
     }
 }
 
@@ -450,7 +450,7 @@ void
 AddPhysicsBodyToGameWithRandomColor(game* Game, physics_body2D Body)
 {
 	Game->World->Bodies[Game->World->BodyCount++] = Body;
-	Game->BodyColors[Game->BodyColorsCount++] = GenerateRandomColor();
+	Game->BodyColors[Game->BodyColorsCount++] = GenerateDarkRandomColor();
 }
 
 void
@@ -594,8 +594,6 @@ InitializeGame(game* Game)
 	Game->World->Bodies = PushArray(Game->MemoryArena, MAX_BODIES, physics_body2D);
 	Game->World->ContactPoints = PushArray(Game->MemoryArena, MAX_CONTACT_POINTS, vec2);
 	Game->World->CollisionManifolds = PushArray(Game->MemoryArena, MAX_COLLISION_MANIFOLDS, collision_manifold);
-	Game->World->CachedAABBs = 
-		PushArray(Game->MemoryArena, MAX_CACHED_AABB, AABB);
 	
 	physics_body2D BottomPlatform = CreateBoxPhysicsBody2D(Game->World,
 														   vec(SCREEN_WIDTH / 2.0f, SCREEN_HEIGHT - 6.0f * PADDING_20),
@@ -605,7 +603,7 @@ InitializeGame(game* Game)
 														   0.5f,
 														   true);
 	
-	BottomPlatform.Rotation = PI / 9;
+	BottomPlatform.Angle = PI / 9;
 	AddPhysicsBodyToGameWithRandomColor(Game, BottomPlatform);
 	
 	physics_body2D LeftPaddle = CreateBoxPhysicsBody2D(Game->World,
@@ -615,7 +613,7 @@ InitializeGame(game* Game)
 													   0.5f,
 													   0.5f,
 													   true);
-	LeftPaddle.Rotation = PI / 4;
+	LeftPaddle.Angle = PI / 4;
 	AddPhysicsBodyToGameWithRandomColor(Game, LeftPaddle);
 	
 	physics_body2D RightPaddle = CreateBoxPhysicsBody2D(Game->World,
@@ -625,7 +623,7 @@ InitializeGame(game* Game)
 														0.5f,
 														0.5f,
 														true);
-	RightPaddle.Rotation = -PI / 4;
+	RightPaddle.Angle = -PI / 4;
 	AddPhysicsBodyToGameWithRandomColor(Game, RightPaddle);
 }
 
@@ -702,17 +700,17 @@ main(int argc, char* args[])
                 Game->World->Bodies[1].Force = Force;
             }
             
-            if(Game->RotationalVelocity != 0.0f)
-                Game->World->Bodies[1].RotationalVelocity = Game->RotationalVelocity;
+            if(Game->AnglealVelocity != 0.0f)
+                Game->World->Bodies[1].AngularVelocity = Game->AngularVelocity;
             else
-                Game->World->Bodies[1].RotationalVelocity = 0.0f;
+                Game->World->Bodies[1].AngularVelocity = 0.0f;
             */
 			
             UpdatePhysicsWorld2d(Game->World, (real32)(FPSTimer->DeltaTicks / 1000.0f), 20);
             
 			DeleteOutofReachPhysicsBodies(Game);
 			
-            ClearRenderer(Game->Renderer, GRAY);
+            ClearRenderer(Game->Renderer, BLACK);
             
             // NOTE: Render all the physics bodies
             for(int i = 0; 
