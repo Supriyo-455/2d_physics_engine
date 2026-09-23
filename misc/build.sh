@@ -30,6 +30,7 @@ CXXFLAGS=(
     "-I${LIBS_PATH}include"           # Add third-party include directory to search path
     "-g3"                             # Generate maximum debug information for GDB
     "-DENGINE_DEBUG=1"                # Define the ENGINE_DEBUG preprocessor macro
+	"-DGPU_RENDERED=1"                # Define the flag for Hardware accelerated rendering
 )
 
 # LINKER FLAGS

@@ -89,7 +89,8 @@ struct game
     SDL_Renderer* Renderer;
     TTF_Font* Font;
     SDL_Event Event;
-    
+	SDL_GLContext GLContext;
+	
     simple_camera Camera;
     
     real32 dx;

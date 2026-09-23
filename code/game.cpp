@@ -310,8 +310,46 @@ GenerateDarkRandomColors(vec4* ColorArray, int ArrayCount)
     }
 }
 
+
 bool32
-InitializeEngine(game* Game)
+__InitializeGPURenderedEngine__(game* Game)
+{
+    bool32 success = true;
+    
+    // NOTE: Force OpenGL driver and Render Batching to drastically reduce draw calls
+    SDL_SetHint(SDL_HINT_RENDER_DRIVER, "opengl");
+    SDL_SetHint(SDL_HINT_RENDER_BATCHING, "1");
+    
+    if(SDL_Init(SDL_INIT_VIDEO) < 0)
+    {
+        LOG_ERROR("SDL could not initialize! SDL Error: %s\n", SDL_GetError());
+        success = false;
+    }
+    else
+    {
+        Game->Window = SDL_CreateWindow("2D Physics Engine",
+                                        SDL_WINDOWPOS_UNDEFINED,
+                                        SDL_WINDOWPOS_UNDEFINED,
+                                        SCREEN_WIDTH,
+                                        SCREEN_HEIGHT,
+                                        SDL_WINDOW_OPENGL);
+        
+        if(Game->Window == NULL)
+        {
+            LOG_ERROR("Window could not be created! SDL Error: %s\n", SDL_GetError() );
+            success = false;
+        }
+		else
+		{
+			Game->GLContext = SDL_GL_CreateContext(Game->Window);
+		}
+    }
+    
+    return success;
+}
+
+bool32
+__InitializeCPURenderedEngine__(game* Game)
 {
     bool32 success = true;
     
@@ -338,7 +376,7 @@ InitializeEngine(game* Game)
             LOG_ERROR("Window could not be created! SDL Error: %s\n", SDL_GetError() );
             success = false;
         }
-        else
+		else
         {
 			// NOTE: Set linear filtering BEFORE renderer creation
 			SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "1");
@@ -390,6 +428,12 @@ InitializeEngine(game* Game)
     
     return success;
 }
+
+#if GPU_RENDERED
+#define InitializeEngine(Game) __InitializeGPURenderedEngine__(Game)
+#else
+#define InitializeEngine(Game) __InitializeCPURenderedEngine__(Game)
+#endif
 
 void
 CloseGame(game* Game)
@@ -660,7 +704,7 @@ DeleteOutofReachPhysicsBodies(game* Game)
 			}
 		}
 		i++;
-	}
+	} 
 }
 
 int
@@ -678,6 +722,8 @@ main(int argc, char* args[])
     }
     else
     {
+		
+		// NOTE: OPENGL TESTING
 		InitializeGame(Game);
 		
 		fpsTimer* FPSTimer = PushStruct(Game->MemoryArena, fpsTimer);
@@ -689,6 +735,17 @@ main(int argc, char* args[])
             
             HandleInput(Game);
             
+#if GPU_RENDERED
+			
+			glViewport(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
+			glClearColor(1.f, 0.f, 1.f, 0.f);
+			glClear(GL_COLOR_BUFFER_BIT);
+			
+			SDL_GL_SwapWindow(Game->Window);
+			
+			// NOTE: End of game loop
+#else
+			
             /*if(Game->dx != 0.0f || Game->dy != 0.0f)
             {            
                 // vec2 Direction = Normalize(vec(Game->dx, Game->dy));
@@ -787,17 +844,12 @@ main(int argc, char* args[])
 									 30);
             }
 			
-#if 0
-			char buf[256] = {};
-			sprintf_s(buf, "FPS: %d, Total Physics Bodies: %d\r\n", GetFPS(FPSTimer), Game->World->BodyCount);
-			LOG_INFO(buf);
+			SDL_RenderPresent(Game->Renderer);
 #endif
-			
-            SDL_RenderPresent(Game->Renderer);
         }
-    }
+	}
     
-    CloseGame(Game);
-    
+	// CloseGame(Game);
+	
     return 0;
 }
