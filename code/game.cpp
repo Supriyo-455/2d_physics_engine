@@ -105,6 +105,20 @@ main(int argc, char* args[])
 		fpsTimer* FPSTimer = PushStruct(Game->MemoryArena, fpsTimer);
 		FPSTimerInit(FPSTimer);
 		
+		const char* VertexShaderSource = "#version 330 core\n"
+			"layout (location = 0) in vec3 aPos;\n"
+			"void main()\n"
+			"{\n"
+			"   gl_Position = vec4(aPos.x, aPos.y, aPos.z, 1.0);\n"
+			"}\0";
+		
+		const char* FragmentShaderSource = "#version 330 core\n"
+			"out vec4 FragColor;\n"
+			"void main()\n"
+			"{\n"
+			"   FragColor = vec4(1.0f, 1.0f, 0.0f, 1.0f);\n"
+			"}\0";
+		
         while(Game->Running)
         {
             FPSTimerUpdate(FPSTimer);
@@ -112,13 +126,98 @@ main(int argc, char* args[])
             HandleInput(Game);
             
 #if GPU_RENDERED
-			
+			// TODO: Resizable screens
 			glViewport(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
-			glClearColor(1.f, 0.f, 1.f, 0.f);
+			glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 			glClear(GL_COLOR_BUFFER_BIT);
 			
-			SDL_GL_SwapWindow(Game->Window);
+			real32 Vertices[] = {
+				0.5f,  0.5f, 0.0f,  // top right
+				0.5f, -0.5f, 0.0f,  // bottom right
+				-0.5f, -0.5f, 0.0f,  // bottom left
+				-0.5f,  0.5f, 0.0f   // top left 
+			};
 			
+			uint32 Indices[] = {
+				0, 1, 3,
+				1, 2, 3
+			};
+			
+			uint32 VAO;
+			glGenVertexArrays(1, &VAO);
+			
+			uint32 VBO;
+			glGenBuffers(1, &VBO);
+			
+			uint32 EBO;
+			glGenBuffers(1, &EBO);
+			
+			glBindVertexArray(VAO);
+			
+			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+			glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(Indices), Indices, GL_STATIC_DRAW);
+			
+			glBindBuffer(GL_ARRAY_BUFFER, VBO);
+			glBufferData(GL_ARRAY_BUFFER, sizeof(Vertices), Vertices, GL_STATIC_DRAW);
+			glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+			glEnableVertexAttribArray(0);
+			
+			glBindVertexArray(0);
+			glBindBuffer(GL_ARRAY_BUFFER, 0);
+			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+			
+			uint32 VertexShader;
+			VertexShader = glCreateShader(GL_VERTEX_SHADER);
+			glShaderSource(VertexShader, 1, &VertexShaderSource, NULL);
+			glCompileShader(VertexShader);
+			
+			// TODO: Use trasient storage for temporary string storage
+			bool32 Success;
+			char InfoLog[512];
+			glGetShaderiv(VertexShader, GL_COMPILE_STATUS, &Success);
+			if(!Success)
+			{
+				glGetShaderInfoLog(VertexShader, 512, NULL, InfoLog);
+				LOG_ERROR("Vertex shader compilation failed.. %s/n", InfoLog);
+			}
+			
+			uint32 FragmentShader;
+			FragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
+			glShaderSource(FragmentShader, 1, &FragmentShaderSource, NULL);
+			glCompileShader(FragmentShader);
+			
+			// TODO: Use trasient storage for temporary string storage
+			glGetShaderiv(FragmentShader, GL_COMPILE_STATUS, &Success);
+			if(!Success)
+			{
+				glGetShaderInfoLog(FragmentShader, 512, NULL, InfoLog);
+				LOG_ERROR("Fragment shader compilation failed.. %s/n", InfoLog);
+			}
+			
+			uint32 ShaderProgram;
+			ShaderProgram = glCreateProgram();
+			
+			glAttachShader(ShaderProgram, VertexShader);
+			glAttachShader(ShaderProgram, FragmentShader);
+			glLinkProgram(ShaderProgram);
+			
+			glGetProgramiv(ShaderProgram, GL_LINK_STATUS, &Success);
+			if(!Success)
+			{
+				glGetProgramInfoLog(ShaderProgram, 512, NULL, InfoLog);
+				LOG_ERROR("Shader program linking failed.. %s/n", InfoLog);
+			}
+			
+			glUseProgram(ShaderProgram);
+			glBindVertexArray(VAO);
+			
+			glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+			
+			glDeleteShader(VertexShader);
+			glDeleteShader(FragmentShader);
+			glBindVertexArray(0);
+			
+			SDL_GL_SwapWindow(Game->Window);
 			// NOTE: End of game loop
 #else
 			

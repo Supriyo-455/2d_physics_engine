@@ -81,16 +81,18 @@ HandleInput(game* Game)
                 
                 case SDLK_SPACE:
                 {
-					Game->HighlightCollisions = !Game->HighlightCollisions;
-                    if(Game->HighlightCollisions)
+					Game->WireframeMode = !Game->WireframeMode;
+					if(Game->WireframeMode)
 					{
-						LOG_INFO("Collisions Highlighter ON!");
+						glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 					}
 					else
 					{
-						LOG_INFO("Collisions Highlighter OFF!");
+						glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 					}
-					break;
+					
+					Game->HighlightCollisions = !Game->HighlightCollisions;
+                    break;
                 }
                 
                 default:

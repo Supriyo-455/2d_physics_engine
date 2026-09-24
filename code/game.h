@@ -39,6 +39,8 @@ struct game
 	bool32 HighlightCollisions;
 	
     bool32 Running;
+	
+	bool32 WireframeMode;
 };
 
 // NOTE: Unity Build dont re-arrange these files
@@ -51,5 +53,7 @@ struct game
 #include "input.cpp"
 #include "timer.cpp"
 
+// NOTE: Third party dependency
+#include "glad.c"
 
 #endif //GAME_H

@@ -41,7 +41,7 @@ Equals(real32 A, real32 B)
 inline real32 
 Sin(real32 x)
 {
-#if 0
+#if OWN_MATH
     real32 sign = 1;
     if (x < 0)
     {
@@ -70,7 +70,7 @@ Sin(real32 x)
 inline real32 
 Cos(real32 x)
 {
-#if 0
+#if OWN_MATH
     if (x < 0)
         x = -x;
     if (x > 360)

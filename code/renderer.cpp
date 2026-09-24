@@ -287,7 +287,11 @@ __InitializeGPURenderedEngine__(game* Game)
 {
     bool32 success = true;
     
-    if(SDL_Init(SDL_INIT_VIDEO) < 0)
+	//Use OpenGL 3.3
+	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 2);
+	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
+    
+	if(SDL_Init(SDL_INIT_VIDEO) < 0)
     {
         LOG_ERROR("SDL could not initialize! SDL Error: %s\n", SDL_GetError());
         success = false;
@@ -309,6 +313,12 @@ __InitializeGPURenderedEngine__(game* Game)
 		else
 		{
 			Game->GLContext = SDL_GL_CreateContext(Game->Window);
+			
+			if(!gladLoadGLLoader((GLADloadproc)SDL_GL_GetProcAddress)) 
+			{
+				LOG_ERROR("Failed to initialize GLAD!\n");
+				success = false;
+			}
 		}
     }
     

@@ -24,9 +24,8 @@
 #endif
 
 #define SDL_MAIN_HANDLED
+#include <glad/glad.h>
 #include <SDL/SDL.h>
-#include <SDL2/SDL_opengl.h>
-#include <GL/gl.h>
 #include <SDL/SDL_image.h>
 #include <SDL/SDL_ttf.h>
 
