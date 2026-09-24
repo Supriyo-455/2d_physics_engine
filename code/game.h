@@ -3,82 +3,14 @@
 
 #include "defines.h"
 #include "simple_math.h"
+#include "memory.h"
+#include "transform_2d.h"
+#include "physics_body_2d.h"
+#include "collision_2d.h"
 #include "physics_2d.h"
-
-#define SCREEN_WIDTH 1300
-#define SCREEN_HEIGHT 800
-
-#define PADDING_20 20
-
-global vec4 WHITE = {
-	.r=1.0f,
-	.g=1.0f,
-	.b=1.0f,
-	.a=1.0f
-};
-
-global vec4 GRAY = {
-	.r=0.5f,
-	.g=0.5f,
-	.b=0.5f,
-	.a=1.0f
-};
-
-global vec4 BLACK = {
-	.r=0.0f,
-	.g=0.0f,
-	.b=0.0f,
-	.a=1.0f
-};
-
-global vec4 RED = {
-	.r=1.0f,
-	.g=0.0f,
-	.b=0.0f,
-	.a=1.0f
-};
-
-global vec4 YELLOW = {
-	.r=1.0f,
-	.g=1.0f,
-	.b=0.0f,
-	.a=1.0f
-};
-
-struct texture
-{
-    // NOTE: Actual hardware texture
-    SDL_Texture* SdlTexture;
-    
-    uint32 Width;
-    uint32 Height;
-};
-
-// TODO: SDL Indepent user input and output
-struct mouse
-{
-    int XPos;
-    int YPos;
-    
-    real32 ScrollWheel;
-    
-    // NOTE: For now we support 3 mouse buttons
-    bool32 ButtonState[3];
-};
-
-struct simple_camera
-{
-    real32 Pan;
-    real32 Zoom;
-    
-    real32 Width;
-    real32 Height;
-    
-    vec2 Position;
-	
-	real32 MaxZoom;
-	real32 MinZoom;
-};
+#include "renderer.h"
+#include "camera.h"
+#include "input.h"
 
 struct game
 {
@@ -108,5 +40,16 @@ struct game
 	
     bool32 Running;
 };
+
+// NOTE: Unity Build dont re-arrange these files
+#include "memory.cpp"
+#include "transform_2d.cpp"
+#include "physics_body_2d.cpp"
+#include "collision_2d.cpp"
+#include "renderer.cpp"
+#include "camera.cpp"
+#include "input.cpp"
+#include "timer.cpp"
+
 
 #endif //GAME_H

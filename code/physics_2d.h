@@ -3,13 +3,6 @@
 #ifndef PHYSICS2_D_H
 #define PHYSICS2_D_H
 
-#include "simple_math.h"
-
-#include "memory.h"
-#include "transform_2d.h"
-#include "physics_body_2d.h"
-#include "collision_2d.h"
-
 #define MAX_BODIES 4096
 #define MAX_COLLISION_MANIFOLDS 100000
 #define MAX_CONTACT_POINTS 100000
@@ -45,11 +38,5 @@ physics_world2D
     inline local_persist const real32 MinDensity = 0.5f;
     inline local_persist const real32 MaxDensity = 21.4f;
 };
-
-// NOTE: Unity Build dont re-arrange these files
-#include "memory.cpp"
-#include "transform_2d.cpp"
-#include "physics_body_2d.cpp"
-#include "collision_2d.cpp"
 
 #endif //PHYSICS2_D_H
