@@ -2,13 +2,41 @@
 
 /* TODO:
    1) Camera - (Simple camera done, Need more advanced camera with actual frustum culling)
-   2) Sound - (No sound features yet)
-   3) Opengl - (As soon as the basic 2d physics engine completed, need to work on opengl 
-   rendering)
-   4) Dynamic arrays
-   5) Memory Arena
+   
+2) Sound - (No sound features yet)
+   
+3) Opengl - (As soon as the basic 2d physics engine completed, need to work on opengl 
+   rendering) (Currently working on this)
+
+[Working]
+* Basic Triangle rendering using fragment and vertex shader
+
+[Planned]
+* Hardware accelerated basic 2d shapes drawing, boxes, circles, lines.
+* Hardware accelerated text rendering
+* Hardware accelerated texture rendering
+* Bloom effect.
+
+4) Dynamic arrays
+   
+5) Memory Arena - Linear memory arena done, still there are other types of arenas, stack, free list research on those. And use memory arena for as much as of allocations in the engine.
+
 6) Profiler
+
 7) Optimization; currently it is performing very very bad.....
+
+8) Robust logging functionality -> Currently it has verbosity, add filters on verbosity, add logs based on channels, save logs before crash in a file. Different colors for different verbosity?? (Optional)
+
+9) Physics enhancemnet -
+
+[Planned]
+* Fix jittering by put the system on rest when collision resolution is very small.
+* Broad phase and narrow phase separation.
+* Friction and rotation.
+* Damping -> Research on Simple harmonic motion and Damped harmonic motion, how they can be effective on making the engine stable.
+* Spring Physics -> Add spring physics
+* Pendulums ??? For hangling ropes in game.
+* Softbody physics
 */
 
 void
@@ -83,41 +111,62 @@ InitializeGame(game* Game)
 	AddPhysicsBodyToGameWithRandomColor(Game, RightPaddle);
 }
 
+const char* 
+LoadFileIntoBuffer(memory_arena* Arena, const char* Filename) {
+    FILE* File = fopen(Filename, "rb");
+    if(!File)
+	{
+		LOG_ERROR("File: %s, does not exist!", Filename);
+		return NULL;
+	}
+	
+    fseek(File, 0, SEEK_END);
+	uint64 Length = ftell(File);
+    fseek(File, 0, SEEK_SET);
+	
+    char* Buffer = PushArray(Arena, Length, char);
+    if (Buffer) {
+        fread(Buffer, 1, Length, File);
+        Buffer[Length] = '\0';
+    }
+	
+    fclose(File);
+    return Buffer;
+}
+
 int
 main(int argc, char* args[])
 {
-    uint64 MemoryArenaSize = Gigabytes(1);
-	game* Game = BootstrapPushStruct(game, MemoryArenaSize);
-	Assert(Game);
-	Game->MemoryArenaSize = MemoryArenaSize;
+    uint64 BackingBufferSize = Megabytes(100);
+	void* BackingBuffer = malloc(BackingBufferSize);
+	memory_arena Arena = {};
+	MemoryArenaInit(&Arena, BackingBuffer, BackingBufferSize);
 	
-    if(!InitializeEngine(Game))
+	game* Game = PushStruct(&Arena, game);
+	Assert(Game);
+	Game->MemoryArena = &Arena;
+	Game->MemoryArenaSize = BackingBufferSize;
+	
+	if(!InitializeEngine(Game))
     {
-        LOG_ERROR("Failed to initialize!\n");
+        LOG_ERROR("Failed to initialize Game!\n");
         return -1;
     }
     else
     {
-		
 		// NOTE: OPENGL TESTING
 		InitializeGame(Game);
 		
 		fpsTimer* FPSTimer = PushStruct(Game->MemoryArena, fpsTimer);
 		FPSTimerInit(FPSTimer);
 		
-		const char* VertexShaderSource = "#version 330 core\n"
-			"layout (location = 0) in vec3 aPos;\n"
-			"void main()\n"
-			"{\n"
-			"   gl_Position = vec4(aPos.x, aPos.y, aPos.z, 1.0);\n"
-			"}\0";
+		const char* VertexShaderSource = LoadFileIntoBuffer(Game->MemoryArena, "assets/shaders/vertex.glsl");
 		
-		const char* FragmentShaderSource = "#version 330 core\n"
-			"out vec4 FragColor;\n"
-			"void main()\n"
-			"{\n"
-			"   FragColor = vec4(1.0f, 1.0f, 0.0f, 1.0f);\n"
-			"}\0";
+		const char* FragmentShaderSource = LoadFileIntoBuffer(Game->MemoryArena, "assets/shaders/fragment.glsl");
+		
+		int32 CountAttributes;
+		glGetIntegerv(GL_MAX_VERTEX_ATTRIBS, &CountAttributes);
+		LOG_INFO("Maximum number of vertex attributes supported: %d\n", CountAttributes);
 		
         while(Game->Running)
         {
@@ -132,10 +181,10 @@ main(int argc, char* args[])
 			glClear(GL_COLOR_BUFFER_BIT);
 			
 			real32 Vertices[] = {
-				0.5f,  0.5f, 0.0f,  // top right
-				0.5f, -0.5f, 0.0f,  // bottom right
-				-0.5f, -0.5f, 0.0f,  // bottom left
-				-0.5f,  0.5f, 0.0f   // top left 
+				// positions         // colors
+				0.5f, -0.5f, 0.0f,  1.0f, 0.0f, 0.0f,   // bottom right
+				-0.5f, -0.5f, 0.0f,  0.0f, 1.0f, 0.0f,   // bottom left
+				0.0f,  0.5f, 0.0f,  0.0f, 0.0f, 1.0f    // top  
 			};
 			
 			uint32 Indices[] = {
@@ -149,18 +198,24 @@ main(int argc, char* args[])
 			uint32 VBO;
 			glGenBuffers(1, &VBO);
 			
-			uint32 EBO;
-			glGenBuffers(1, &EBO);
+			// uint32 EBO;
+			//glGenBuffers(1, &EBO);
 			
 			glBindVertexArray(VAO);
 			
-			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-			glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(Indices), Indices, GL_STATIC_DRAW);
+			// glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+			// glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(Indices), Indices, GL_STATIC_DRAW);
 			
 			glBindBuffer(GL_ARRAY_BUFFER, VBO);
 			glBufferData(GL_ARRAY_BUFFER, sizeof(Vertices), Vertices, GL_STATIC_DRAW);
-			glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+			
+			// NOTE: Vertex position attribute
+			glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(real32), (void*)0);
 			glEnableVertexAttribArray(0);
+			
+			// NOTE: Vertex color attribute
+			glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(real32), (void*)(3* sizeof(real32)));
+			glEnableVertexAttribArray(1);
 			
 			glBindVertexArray(0);
 			glBindBuffer(GL_ARRAY_BUFFER, 0);
@@ -171,13 +226,16 @@ main(int argc, char* args[])
 			glShaderSource(VertexShader, 1, &VertexShaderSource, NULL);
 			glCompileShader(VertexShader);
 			
-			// TODO: Use trasient storage for temporary string storage
+			temp_memory_arena TempArena = TempMemoryArenaBegin(Game->MemoryArena);
+			
 			bool32 Success;
-			char InfoLog[512];
+			uint32 InfoLogLength = 512;
+			char* InfoLog = PushArray(TempArena.Arena, InfoLogLength, char);
+			
 			glGetShaderiv(VertexShader, GL_COMPILE_STATUS, &Success);
 			if(!Success)
 			{
-				glGetShaderInfoLog(VertexShader, 512, NULL, InfoLog);
+				glGetShaderInfoLog(VertexShader, InfoLogLength, NULL, InfoLog);
 				LOG_ERROR("Vertex shader compilation failed.. %s/n", InfoLog);
 			}
 			
@@ -186,11 +244,10 @@ main(int argc, char* args[])
 			glShaderSource(FragmentShader, 1, &FragmentShaderSource, NULL);
 			glCompileShader(FragmentShader);
 			
-			// TODO: Use trasient storage for temporary string storage
 			glGetShaderiv(FragmentShader, GL_COMPILE_STATUS, &Success);
 			if(!Success)
 			{
-				glGetShaderInfoLog(FragmentShader, 512, NULL, InfoLog);
+				glGetShaderInfoLog(FragmentShader, InfoLogLength, NULL, InfoLog);
 				LOG_ERROR("Fragment shader compilation failed.. %s/n", InfoLog);
 			}
 			
@@ -204,14 +261,22 @@ main(int argc, char* args[])
 			glGetProgramiv(ShaderProgram, GL_LINK_STATUS, &Success);
 			if(!Success)
 			{
-				glGetProgramInfoLog(ShaderProgram, 512, NULL, InfoLog);
+				glGetProgramInfoLog(ShaderProgram, InfoLogLength, NULL, InfoLog);
 				LOG_ERROR("Shader program linking failed.. %s/n", InfoLog);
 			}
+			
+			TempMemoryArenaEnd(TempArena);
+			
+			// uint32 UniformOurColorLocation = glGetUniformLocation(ShaderProgram, "OurColor");
 			
 			glUseProgram(ShaderProgram);
 			glBindVertexArray(VAO);
 			
-			glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+			// glUniform4f(UniformOurColorLocation, 1.0f, 0.0f, 1.0f, 1.0f);
+			
+			// glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+			glDrawArrays(GL_TRIANGLES, 0, 3);
+			
 			
 			glDeleteShader(VertexShader);
 			glDeleteShader(FragmentShader);

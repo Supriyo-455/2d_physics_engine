@@ -135,26 +135,6 @@ MemoryArenaInit(memory_arena* Arena, void* BackingBuffer, uint64 BackingBufferLe
 	Arena->PrevOffset = 0;
 }
 
-void* 
-BootstrapPushSize_(uint64 MemoryArenaSize, uint64 StructSize)
-{
-    void* BackingBuffer = malloc(MemoryArenaSize); 
-    memory_arena* Arena = (memory_arena*)BackingBuffer;
-    MemoryArenaInit(Arena, BackingBuffer, MemoryArenaSize);
-    
-    // NOTE: Reserve space for the arena itself without zeroing it out
-    // Since memory_arena is exactly 32 bytes, we just advance the offset.
-    Arena->CurrOffset = sizeof(memory_arena);
-	
-    void* Struct = MemoryArenaAllocate(Arena, StructSize);
-	
-    // NOTE: Because the arena pointer is the very first variable in the struct, 
-    // we can just set it directly.
-    *(memory_arena**)Struct = Arena;
-	
-    return Struct;
-}
-
 void*
 MemoryArenaResize(memory_arena* Arena, void* OldMemory, uint64 OldMemorySize, uint64 NewMemorySize, uint64 Align)
 {

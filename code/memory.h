@@ -25,7 +25,6 @@ struct temp_memory_arena
 
 #define DEFAULT_ALIGNMENT (2*sizeof(void *))
 
-
 #define PushStruct(Arena, type) (type*)MemoryArenaAllocate((Arena), sizeof(type))
 #define PushArray(Arena, Count, type) (type*)MemoryArenaAllocate((Arena), (Count)*sizeof(type))
 #define PushSize(Arena, Size) MemoryArenaAllocate((Arena), (Size))
@@ -33,7 +32,5 @@ struct temp_memory_arena
 
 #define ZeroStruct(Instance) ZeroSize(sizeof(Instance), &(Instance))
 #define ZeroArray(Count, Pointer) ZeroSize((Count)*sizeof((Pointer)[0]), Pointer)
-
-#define BootstrapPushStruct(type, ArenaSize) (type*)BootstrapPushSize_(ArenaSize, sizeof(type))
 
 #endif //MEMORY_H
