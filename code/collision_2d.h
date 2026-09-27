@@ -15,5 +15,12 @@ collision_manifold
 	uint32 ContactCount;
 };
 
+struct
+contact_pair
+{
+	physics_body2D* BodyA;
+	physics_body2D* BodyB;
+};
+
 
 #endif //COLLISION_2D_H

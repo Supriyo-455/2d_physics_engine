@@ -1,6 +1,7 @@
 bool32
 IsPhysicsBodyValid(physics_world2D* World, physics_body2D* Body)
-{    
+{   
+	// TODO: Create a function to compare real values
     if(Body->Area < World->MinBodySize)
     {
         LOG_ERROR("Unable to initialize physics body with area, %0.2f; Where min-area allowed is %0.2f\n", Body->Area, World->MinBodySize);
@@ -9,6 +10,7 @@ IsPhysicsBodyValid(physics_world2D* World, physics_body2D* Body)
         return false;
     }
     
+	// TODO: Create a function to compare real values
     if(Body->Area > World->MaxBodySize)
     {
         LOG_ERROR("Unable to initialize physics body with area, %0.2f; Where max-area allowed is %0.2f\n", Body->Area, World->MaxBodySize);
@@ -16,7 +18,8 @@ IsPhysicsBodyValid(physics_world2D* World, physics_body2D* Body)
         // NOTE: Empty body 
         return false;
     }
-    
+	
+    // TODO: Create a function to compare real values
     if(Body->Density < World->MinDensity)
     {
         LOG_ERROR("Unable to initialize physics body with density, %0.2f; Where min-density allowed is %0.2f\n", Body->Density, World->MinDensity);
@@ -25,6 +28,7 @@ IsPhysicsBodyValid(physics_world2D* World, physics_body2D* Body)
         return false;
     }
     
+	// TODO: Create a function to compare real values
     if(Body->Density > World->MaxDensity)
     {
         LOG_ERROR("Unable to initialize physics body with density, %0.2f; Where max-density allowed is %0.2f\n", Body->Density, World->MaxDensity);

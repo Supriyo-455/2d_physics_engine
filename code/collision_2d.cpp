@@ -20,6 +20,17 @@ CreateCollisionManifold(physics_body2D* A,
 	return CollisionManifold;
 }
 
+contact_pair
+CreateContactPair(physics_body2D* BodyA, physics_body2D* BodyB)
+{
+	contact_pair Pair = {};
+	
+	Pair.BodyA = BodyA;
+	Pair.BodyB = BodyB;
+	
+	return Pair;
+}
+
 bool32
 IntersectAABBs(AABB BodyA_AABB, AABB BodyB_AABB)
 {
@@ -51,10 +62,12 @@ FindClosestPointAndMinDistanceFromALineSegment(vec2 LineSegA,
 	
 	real32 D = Proj / DistSq;
 	
+	// TODO: Create a function to compare real values
 	if(D <= 0.0f)
 	{
 		*ClosestPoint = LineSegA;
 	}
+	// TODO: Create a function to compare real values
 	else if(D >= 1.0f)
 	{
 		*ClosestPoint = LineSegB;
@@ -90,6 +103,7 @@ FindContactPointsCircleAndPolygon(vec2 CircleCenter,
 													   &Distance, 
 													   &Point);
 		
+		// TODO: Create a function to compare real values
 		if(Distance < MinDistance)
 		{
 			MinDistance = Distance;
@@ -139,6 +153,7 @@ FindContactPointsBoxes(vec2* VerticesA,
 			FindClosestPointAndMinDistanceFromALineSegment(A, B, Point, 
 														   &Distance, 
 														   &ClosestPoint);
+			// TODO: Create a function to compare real values
 			if(MinDistance == Distance)
 			{
 				if(!Equals(*Contact1, ClosestPoint))
@@ -149,6 +164,8 @@ FindContactPointsBoxes(vec2* VerticesA,
 					Contact2->y = ClosestPoint.y;
 				}
 			}
+			
+			// TODO: Create a function to compare real values
 			else if(MinDistance > Distance)
 			{
 				MinDistance = Distance;
@@ -176,6 +193,8 @@ FindContactPointsBoxes(vec2* VerticesA,
 			FindClosestPointAndMinDistanceFromALineSegment(A, B, Point, 
 														   &Distance, 
 														   &ClosestPoint);
+			
+			// TODO: Create a function to compare real values
 			if(MinDistance == Distance)
 			{
 				if(!Equals(*Contact1, ClosestPoint))
@@ -186,6 +205,8 @@ FindContactPointsBoxes(vec2* VerticesA,
 					Contact2->y = ClosestPoint.y;
 				}
 			}
+			
+			// TODO: Create a function to compare real values
 			else if(MinDistance > Distance)
 			{
 				MinDistance = Distance;
@@ -275,6 +296,7 @@ IntersectCircles(vec2 CenterA, real32 RadiusA,
     real32 distance = Distance(CenterA, CenterB);
     real32 Radii = RadiusA + RadiusB;
     
+	// TODO: Create a function to compare real values
     if(distance >= Radii)
     {
         return false;
@@ -323,6 +345,8 @@ IntersectPolygons(physics_body2D* BodyA, physics_body2D* BodyB,
             return false;
         
         AxisDepth = MIN(MaxB - MinA, MaxA - MinB);
+		
+		// TODO: Create a function to compare real values
         if(AxisDepth < *OutDepth)
         {
             *OutDepth = AxisDepth;
@@ -356,6 +380,8 @@ IntersectPolygons(physics_body2D* BodyA, physics_body2D* BodyB,
             return false;
         
         AxisDepth = MIN(MaxB - MinA, MaxA - MinB);
+		
+		// TODO: Create a function to compare real values
         if(AxisDepth < *OutDepth)
         {
             *OutDepth = AxisDepth;
@@ -413,6 +439,8 @@ IntersectCircleAndPolygon(physics_body2D* Circle, physics_body2D* Polygon,
             return false;
         
         AxisDepth = MIN(MaxB - MinA, MaxA - MinB);
+		
+		// TODO: Create a function to compare real values
         if(AxisDepth < *OutDepth)
         {
             *OutDepth = AxisDepth;
@@ -440,6 +468,8 @@ IntersectCircleAndPolygon(physics_body2D* Circle, physics_body2D* Polygon,
             return false;
         
         AxisDepth = MIN(MaxB - MinA, MaxA - MinB);
+		
+		// TODO: Create a function to compare real values
         if(AxisDepth < *OutDepth)
         {
             *OutDepth = AxisDepth;
@@ -508,6 +538,7 @@ ResolveCollision(collision_manifold* CollisionManifold)
     
     // NOTE: If objects are already separating, do not apply impulse
     real32 VelAlongNormal = Dot(RelativeVelocity, OutNormal);
+	// TODO: Create a function to compare real values
     if (VelAlongNormal > 0.0f)
         return;
     
@@ -520,7 +551,10 @@ ResolveCollision(collision_manifold* CollisionManifold)
     B->LinearVelocity = B->LinearVelocity + Impulse * B->InvMass;
 	
 	A->TransformUpdateRequired = true;
+	A->AabbUpdateRequired = true;
+	
 	B->TransformUpdateRequired = true;
+	B->AabbUpdateRequired = true;
 }
 
 bool32 
@@ -541,12 +575,128 @@ ContainsContact(vec2* Contacts, uint32 ContactsCount, vec2 Target)
 }
 
 void
+CollisionResolutionBroadPhase(physics_world2D* World)
+{
+	for(int i = 0; 
+		i < World->BodyCount-1; 
+		i++)
+	{
+		physics_body2D* BodyA = &World->Bodies[i];
+		AABB BodyA_AABB = GetAABBFromPhysicsBody(&World->Bodies[i]);
+		
+		for(int j = i + 1; 
+			j < World->BodyCount; 
+			j++)
+		{
+			physics_body2D* BodyB = &World->Bodies[j];
+			AABB BodyB_AABB = GetAABBFromPhysicsBody(&World->Bodies[j]);
+			
+			if(BodyA->IsStatic && BodyB->IsStatic)
+			{
+				continue;
+			}
+			
+			if(IntersectAABBs(BodyA_AABB, BodyB_AABB))
+			{
+				World->ContactPairs[World->ContactPairsCount++] = CreateContactPair(BodyA, BodyB);
+			}
+		}
+	}
+}
+
+void
+CollisionResolutionNarrowPhase(physics_world2D* World)
+{
+	
+	for(int i = 0;
+		i < World->ContactPairsCount;
+		i++)
+	{
+		vec2 OutNormal = vec(0.0f, 0.0f);
+		real32 OutDepth = 0.0f;
+		
+		vec2 Contact1 = vec(0.0f, 0.0f);
+		vec2 Contact2 = vec(0.0f, 0.0f);
+		uint32 ContactPoints = 0;
+		
+		physics_body2D* BodyA = World->ContactPairs[i].BodyA;
+		physics_body2D* BodyB = World->ContactPairs[i].BodyB;
+		
+		if(CheckCollision2D(BodyA, BodyB, &OutNormal, &OutDepth))
+		{
+			BodyA->IsCollided = true;
+			BodyB->IsCollided = true;
+			
+			// NOTE: Compress this code
+			if(BodyA->IsStatic)
+			{
+				BodyB->Position = BodyB->Position + OutNormal * (OutDepth);
+			}
+			else if(BodyB->IsStatic)
+			{
+				BodyA->Position = BodyA->Position - OutNormal * (OutDepth);
+			}
+			else
+			{
+				BodyA->Position = BodyA->Position - (OutNormal * (OutDepth * 0.5f));
+				BodyB->Position = BodyB->Position + (OutNormal * (OutDepth * 0.5f));
+			}
+			
+#if SHOW_CONTACT_POINTS
+			FindContactPoints(BodyA, BodyB, &Contact1, &Contact2, &ContactPoints);
+#endif
+			
+			collision_manifold CollisionManifold = 
+				CreateCollisionManifold(BodyA, 
+										BodyB, 
+										OutNormal, 
+										OutDepth, 
+										Contact1, 
+										Contact2,
+										ContactPoints);
+			
+			World->CollisionManifolds[World->CollisionManifoldsCount++] = CollisionManifold;
+		}
+	}
+	
+	
+	// TODO: Remove collision manifolds array and resolve collision from contact pairs
+	for(int i = 0; 
+		i < World->CollisionManifoldsCount; 
+		i++)
+	{
+		
+		collision_manifold CollisionManifold = World->CollisionManifolds[i];
+		ResolveCollision(&CollisionManifold);
+		
+#if SHOW_CONTACT_POINTS
+		if (World->ContactPointsCount < MAX_CONTACT_POINTS)
+		{
+			if(CollisionManifold.ContactCount > 0)
+			{
+				if(!ContainsContact(World->ContactPoints, World->ContactPointsCount, CollisionManifold.Contact1))
+				{
+					World->ContactPoints[World->ContactPointsCount++] = CollisionManifold.Contact1;
+				}
+				
+				if(CollisionManifold.ContactCount > 1)
+				{
+					if(!ContainsContact(World->ContactPoints, World->ContactPointsCount, CollisionManifold.Contact2))
+					{
+						
+						World->ContactPoints[World->ContactPointsCount++]  = CollisionManifold.Contact2;
+					}
+				}
+			}
+		}
+#endif
+	}
+}
+
+void
 UpdatePhysicsWorld2d(physics_world2D* World, real32 ElapsedTime, int Iterations)
 {
 	Iterations = Clamp(Iterations, World->MinIteration, World->MaxIteration);
-	
-	// TODO: Replace array with linkedlist
-	World->ContactPointsCount = 0;
 	
 	real32 SubStepTime = ElapsedTime / Iterations;
 	
@@ -580,103 +730,12 @@ UpdatePhysicsWorld2d(physics_world2D* World, real32 ElapsedTime, int Iterations)
 			World->Bodies[i].IsCollided = false;
 		}
 		
-		// TODO: Replace with linked list data structure
-		World->CollisionManifoldsCount = 0;
 		
-		// NOTE: Collide step
-		for(int i = 0; 
-			i < World->BodyCount-1; 
-			i++)
-		{
-			physics_body2D* BodyA = &World->Bodies[i];
-			AABB BodyA_AABB = GetAABBFromPhysicsBody(&World->Bodies[i]);
-			
-			for(int j = i + 1; 
-				j < World->BodyCount; 
-				j++)
-			{
-				physics_body2D* BodyB = &World->Bodies[j];
-				AABB BodyB_AABB = GetAABBFromPhysicsBody(&World->Bodies[j]);
-				
-				if(BodyA->IsStatic && BodyB->IsStatic)
-				{
-					continue;
-				}
-				
-				if(!IntersectAABBs(BodyA_AABB, BodyB_AABB))
-				{
-					continue;
-				}
-				
-				vec2 OutNormal = vec(0.0f, 0.0f);
-				real32 OutDepth = 0.0f;
-				
-				vec2 Contact1 = vec(0.0f, 0.0f);
-				vec2 Contact2 = vec(0.0f, 0.0f);
-				uint32 ContactPoints;
-				
-				if(CheckCollision2D(BodyA, BodyB, &OutNormal, &OutDepth))
-				{
-					BodyA->IsCollided = true;
-					BodyB->IsCollided = true;
-					
-					// NOTE: Compress this code
-					if(BodyA->IsStatic)
-					{
-						BodyB->Position = BodyB->Position + OutNormal * (OutDepth);
-					}
-					else if(BodyB->IsStatic)
-					{
-						BodyA->Position = BodyA->Position - OutNormal * (OutDepth);
-					}
-					else
-					{
-						BodyA->Position = BodyA->Position - (OutNormal * (OutDepth * 0.5f));
-						BodyB->Position = BodyB->Position + (OutNormal * (OutDepth * 0.5f));
-					}
-					
-					FindContactPoints(BodyA, BodyB, &Contact1, &Contact2, &ContactPoints);
-					
-					collision_manifold CollisionManifold = 
-						CreateCollisionManifold(BodyA, 
-												BodyB, 
-												OutNormal, 
-												OutDepth, 
-												Contact1, 
-												Contact2,
-												ContactPoints);
-					
-					World->CollisionManifolds[World->CollisionManifoldsCount++] = CollisionManifold;
-				}
-			}
-			
-			for(int i = 0; 
-				i < World->CollisionManifoldsCount; 
-				i++)
-			{
-				collision_manifold CollisionManifold = World->CollisionManifolds[i];
-				ResolveCollision(&CollisionManifold);
-				
-				if (World->ContactPointsCount < MAX_CONTACT_POINTS)
-				{
-					if(CollisionManifold.ContactCount > 0)
-					{
-						if(!ContainsContact(World->ContactPoints, World->ContactPointsCount, CollisionManifold.Contact1))
-						{
-							World->ContactPoints[World->ContactPointsCount++] = CollisionManifold.Contact1;
-						}
-						
-						if(CollisionManifold.ContactCount > 1)
-						{
-							if(!ContainsContact(World->ContactPoints, World->ContactPointsCount, CollisionManifold.Contact2))
-							{
-								
-								World->ContactPoints[World->ContactPointsCount++]  = CollisionManifold.Contact2;
-							}
-						}
-					}
-				}
-			}
-		}
+		World->CollisionManifoldsCount = 0;
+		World->ContactPairsCount = 0;
+		World->ContactPointsCount = 0;
+		
+		CollisionResolutionBroadPhase(World);
+		CollisionResolutionNarrowPhase(World);
 	}
 }

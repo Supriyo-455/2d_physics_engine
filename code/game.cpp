@@ -28,15 +28,23 @@
 8) Robust logging functionality -> Currently it has verbosity, add filters on verbosity, add logs based on channels, save logs before crash in a file. Different colors for different verbosity?? (Optional)
 
 9) Physics enhancemnet -
+[Done]
+* Broad phase and narrow phase separation.
 
 [Planned]
 * Fix jittering by put the system on rest when collision resolution is very small.
-* Broad phase and narrow phase separation.
 * Friction and rotation.
 * Damping -> Research on Simple harmonic motion and Damped harmonic motion, how they can be effective on making the engine stable.
 * Spring Physics -> Add spring physics
 * Pendulums ??? For hangling ropes in game.
 * Softbody physics
+
+10) Engine enhancement -
+
+[Planned]
+* Tilemap editor
+* Level designer
+* Separate engine from the game for re-usability
 */
 
 void
@@ -76,6 +84,7 @@ InitializeGame(game* Game)
 	
 	Game->World = PushStruct(Game->MemoryArena, physics_world2D);
 	Game->World->Bodies = PushArray(Game->MemoryArena, MAX_BODIES, physics_body2D);
+	Game->World->ContactPairs = PushArray(Game->MemoryArena, MAX_CONTACT_PAIRS, contact_pair);
 	Game->World->ContactPoints = PushArray(Game->MemoryArena, MAX_CONTACT_POINTS, vec2);
 	Game->World->CollisionManifolds = PushArray(Game->MemoryArena, MAX_COLLISION_MANIFOLDS, collision_manifold);
 	
@@ -137,7 +146,7 @@ LoadFileIntoBuffer(memory_arena* Arena, const char* Filename) {
 int
 main(int argc, char* args[])
 {
-    uint64 BackingBufferSize = Megabytes(100);
+    uint64 BackingBufferSize = Megabytes(500);
 	void* BackingBuffer = malloc(BackingBufferSize);
 	memory_arena Arena = {};
 	MemoryArenaInit(&Arena, BackingBuffer, BackingBufferSize);
@@ -160,6 +169,7 @@ main(int argc, char* args[])
 		fpsTimer* FPSTimer = PushStruct(Game->MemoryArena, fpsTimer);
 		FPSTimerInit(FPSTimer);
 		
+#if GPU_RENDERED
 		const char* VertexShaderSource = LoadFileIntoBuffer(Game->MemoryArena, "assets/shaders/vertex.glsl");
 		
 		const char* FragmentShaderSource = LoadFileIntoBuffer(Game->MemoryArena, "assets/shaders/fragment.glsl");
@@ -167,6 +177,7 @@ main(int argc, char* args[])
 		int32 CountAttributes;
 		glGetIntegerv(GL_MAX_VERTEX_ATTRIBS, &CountAttributes);
 		LOG_INFO("Maximum number of vertex attributes supported: %d\n", CountAttributes);
+#endif
 		
         while(Game->Running)
         {
@@ -339,7 +350,7 @@ main(int argc, char* args[])
                 }
             }
 			
-#if 0
+#if SHOW_CONTACT_POINTS
 			for(int i = 0; 
 				i < Game->World->ContactPointsCount; 
 				i++)

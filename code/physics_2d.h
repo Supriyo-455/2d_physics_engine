@@ -4,6 +4,7 @@
 #define PHYSICS2_D_H
 
 #define MAX_BODIES 4096
+#define MAX_CONTACT_PAIRS 100000
 #define MAX_COLLISION_MANIFOLDS 100000
 #define MAX_CONTACT_POINTS 100000
 #define MAX_CACHED_AABB 1000
@@ -13,6 +14,10 @@ physics_world2D
 {
 	physics_body2D* Bodies;
 	uint32 BodyCount;
+	
+	// TODO: Store contact pairs data in physics body itself, not in world
+	contact_pair* ContactPairs;
+	uint32 ContactPairsCount;
 	
 	// TODO: Store collision manifold in physics body itself, not in world
 	collision_manifold* CollisionManifolds;
