@@ -30,10 +30,11 @@
 9) Physics enhancemnet -
 [Done]
 * Broad phase and narrow phase separation.
+* Collision resolution with rotation
 
 [Planned]
 * Fix jittering by put the system on rest when collision resolution is very small.
-* Friction and rotation.
+* Friction.
 * Damping -> Research on Simple harmonic motion and Damped harmonic motion, how they can be effective on making the engine stable.
 * Spring Physics -> Add spring physics
 * Pendulums ??? For hangling ropes in game.

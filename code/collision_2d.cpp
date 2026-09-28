@@ -527,7 +527,91 @@ CheckCollision2D(physics_body2D* A, physics_body2D* B, vec2* OutNormal, real32* 
 }
 
 void
-ResolveCollision(collision_manifold* CollisionManifold)
+ResolveCollisionWithRotation(collision_manifold* CollisionManifold)
+{
+	physics_body2D* A = CollisionManifold->BodyA;
+	physics_body2D* B = CollisionManifold->BodyB;
+	
+	vec2 OutNormal = CollisionManifold->OutNormal;
+	real32 OutDepth = CollisionManifold->OutDepth;
+	
+	vec2 Contact1 = CollisionManifold->Contact1;
+	vec2 Contact2 = CollisionManifold->Contact2;
+	
+	uint32 ContactCount = CollisionManifold->ContactCount;
+	vec2 Contacts[2] = {Contact1, Contact2};
+	
+	
+	real32 e = MIN(A->Restitution, B->Restitution);
+    
+	vec2 RaArray[2] = {};
+	vec2 RbArray[2] = {};
+	vec2 Impulses[2] = {};
+	
+	for(int i = 0;
+		i < ContactCount;
+		i++)
+	{
+		RaArray[i] = Contacts[i] - A->Position;
+		RbArray[i]= Contacts[i] - B->Position;
+		
+		vec2 Ra = RaArray[i];
+		vec2 Rb = RbArray[i];
+		
+		vec2 RaPerpendicular = vec(-Ra.y, Ra.x);
+		vec2 RbPerpendicular = vec(-Rb.y, Rb.x);
+		
+		vec2 AngularLinearVelocityA = RaPerpendicular * A->AngularVelocity;
+		vec2 AngularLinearVelocityB = RbPerpendicular * B->AngularVelocity;
+		
+		vec2 RelativeVelocity = (B->LinearVelocity + AngularLinearVelocityB) -
+		(A->LinearVelocity + AngularLinearVelocityA);
+		
+		real32 ContactVelocityMag = Dot(RelativeVelocity, OutNormal);
+		
+		// TODO: Create a function to compare real values
+		if(ContactVelocityMag > 0.0f)
+		{
+			continue;
+		}
+		
+		real32 RaPerpendularDotNormal = Dot(RaPerpendicular, OutNormal);
+		real32 RbPerpendularDotNormal = Dot(RbPerpendicular, OutNormal);
+		
+		real32 Denom = A->InvMass + B->InvMass + 
+		(RaPerpendularDotNormal * RaPerpendularDotNormal) * A->InvIntertia +
+		(RbPerpendularDotNormal * RbPerpendularDotNormal) * B->InvIntertia;
+		
+		real32 j = -(1.0f + e) * ContactVelocityMag;
+		j /= Denom;
+		j /= (real32) ContactCount;
+		
+		Impulses[i] = OutNormal * j;
+	}
+	
+	for(int i = 0;
+		i < ContactCount;
+		i++)
+	{
+		vec2 Ra = RaArray[i];
+		vec2 Rb = RbArray[i];
+		
+		A->LinearVelocity = A->LinearVelocity - Impulses[i] * A->InvMass;
+		B->LinearVelocity = B->LinearVelocity + Impulses[i] * B->InvMass;
+		
+		A->AngularVelocity = A->AngularVelocity - Cross(Ra, Impulses[i]) * A->InvIntertia;
+		B->AngularVelocity = B->AngularVelocity + Cross(Rb, Impulses[i]) * B->InvIntertia;
+	}
+	
+	A->TransformUpdateRequired = true;
+	A->AabbUpdateRequired = true;
+	
+	B->TransformUpdateRequired = true;
+	B->AabbUpdateRequired = true;
+}
+
+void
+ResolveCollisionWithOutRotation(collision_manifold* CollisionManifold)
 {
 	physics_body2D* A = CollisionManifold->BodyA;
 	physics_body2D* B = CollisionManifold->BodyB;
@@ -642,9 +726,7 @@ CollisionResolutionNarrowPhase(physics_world2D* World)
 				BodyB->Position = BodyB->Position + (OutNormal * (OutDepth * 0.5f));
 			}
 			
-#if SHOW_CONTACT_POINTS
 			FindContactPoints(BodyA, BodyB, &Contact1, &Contact2, &ContactPoints);
-#endif
 			
 			collision_manifold CollisionManifold = 
 				CreateCollisionManifold(BodyA, 
@@ -667,7 +749,7 @@ CollisionResolutionNarrowPhase(physics_world2D* World)
 	{
 		
 		collision_manifold CollisionManifold = World->CollisionManifolds[i];
-		ResolveCollision(&CollisionManifold);
+		ResolveCollisionWithRotation(&CollisionManifold);
 		
 #if SHOW_CONTACT_POINTS
 		if (World->ContactPointsCount < MAX_CONTACT_POINTS)

@@ -125,7 +125,7 @@ CreateBoxPhysicsBody2D(physics_world2D* World, vec2 Position, real32 Width, real
     if(!Body.IsStatic)
     {
         Body.InvMass = 1.0f / Body.Mass;
-		Body.InvIntertia = 1.0f / Body.InvIntertia;
+		Body.InvIntertia = 1.0f / Body.Inertia;
     }
     else
     {
@@ -183,9 +183,9 @@ GetAABBFromPhysicsBody(physics_body2D* Body)
 	if(Body->AabbUpdateRequired)
 	{
 		real32 MinX = FLT_MAX;
-		real32 MaxX = FLT_MIN;
+		real32 MaxX = -FLT_MAX;
 		real32 MinY = FLT_MAX;
-		real32 MaxY = FLT_MIN;
+		real32 MaxY = -FLT_MAX;
 		
 		if(Body->Shape == CIRCLE)
 		{
@@ -229,7 +229,7 @@ void
 ProjectVertices(vec2* Vertices, int VerticesCount, vec2 Axis, real32* Min, real32* Max)
 {
     *Min = FLT_MAX;
-    *Max = FLT_MIN;
+    *Max = -FLT_MAX;
     
     for(int i = 0; 
 		i < VerticesCount; 

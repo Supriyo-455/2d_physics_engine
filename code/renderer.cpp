@@ -214,17 +214,15 @@ RenderPhysicsBody(SDL_Renderer* Renderer,
             RenderHollowCircle(Renderer, X, Y, Radius, BorderColor);
             
             // TODO: This is ugly and hacky, no actual rotation of circle
-#if 0
 			SDL_Color Border = ConvertToSDLColor(BorderColor);
             SDL_SetRenderDrawColor(Renderer, Border.r, Border.g, Border.b, Border.a);
             
-            real32 RCos = X  + Radius * cosf(Body->Rotation);
-            real32 RSin = Y  + Radius * sinf(Body->Rotation);
+            real32 RCos = X  + Radius * Cos(Body->Angle);
+            real32 RSin = Y  + Radius * Sin(Body->Angle);
             
             SDL_RenderDrawLineF(Renderer,
                                 (real32) X, (real32) Y,
                                 RCos, RSin);
-#endif
         }
         break;
         case BOX:

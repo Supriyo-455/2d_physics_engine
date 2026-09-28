@@ -8,10 +8,13 @@ collision_manifold
 {
 	physics_body2D* BodyA;
 	physics_body2D* BodyB;
+	
 	vec2 OutNormal;
 	real32 OutDepth;
+	
 	vec2 Contact1;
 	vec2 Contact2;
+	
 	uint32 ContactCount;
 };
 

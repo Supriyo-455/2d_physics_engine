@@ -214,6 +214,12 @@ inline real32 Dot(vec2 A, vec2 B)
     return result;
 }
 
+inline real32 Cross(vec2 A, vec2 B)
+{
+	
+	return A.x * B.y - B.x - A.y;
+}
+
 inline real32 Magnitude(vec2 A)
 {
     return sqrtf(Dot(A, A));
