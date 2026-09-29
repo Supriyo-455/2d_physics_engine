@@ -541,12 +541,15 @@ ResolveCollisionWithRotation(collision_manifold* CollisionManifold)
 	uint32 ContactCount = CollisionManifold->ContactCount;
 	vec2 Contacts[2] = {Contact1, Contact2};
 	
+	real32 StaticFriction = (A->StaticFriction + B->StaticFriction) * 0.5f;
+	real32 DynamicFriction = (A->DynamicFriction + B->DynamicFriction) * 0.5f;
 	
 	real32 e = MIN(A->Restitution, B->Restitution);
     
 	vec2 RaArray[2] = {};
 	vec2 RbArray[2] = {};
 	vec2 Impulses[2] = {};
+	real32 Jvalues[2] = {};
 	
 	for(int i = 0;
 		i < ContactCount;
@@ -582,11 +585,87 @@ ResolveCollisionWithRotation(collision_manifold* CollisionManifold)
 		(RaPerpendularDotNormal * RaPerpendularDotNormal) * A->InvIntertia +
 		(RbPerpendularDotNormal * RbPerpendularDotNormal) * B->InvIntertia;
 		
-		real32 j = -(1.0f + e) * ContactVelocityMag;
+		real32 CurrentRestitution = e;
+		// NOTE: Threshold for resting contacts
+		if(Abs(ContactVelocityMag) < 200.0f)
+		{
+			CurrentRestitution = 0.0f;
+		}
+		
+		real32 j = -(1.0f + CurrentRestitution) * ContactVelocityMag;
 		j /= Denom;
 		j /= (real32) ContactCount;
 		
+		Jvalues[i] = j;
 		Impulses[i] = OutNormal * j;
+	}
+	
+	for(int i = 0;
+		i < ContactCount;
+		i++)
+	{
+		vec2 Ra = RaArray[i];
+		vec2 Rb = RbArray[i];
+		
+		A->LinearVelocity = A->LinearVelocity - Impulses[i] * A->InvMass;
+		B->LinearVelocity = B->LinearVelocity + Impulses[i] * B->InvMass;
+		
+		A->AngularVelocity = A->AngularVelocity - Cross(Ra, Impulses[i]) * A->InvIntertia;
+		B->AngularVelocity = B->AngularVelocity + Cross(Rb, Impulses[i]) * B->InvIntertia;
+	}
+	
+	for(int i = 0;
+		i < ContactCount;
+		i++)
+	{
+		RaArray[i] = Contacts[i] - A->Position;
+		RbArray[i]= Contacts[i] - B->Position;
+		
+		vec2 Ra = RaArray[i];
+		vec2 Rb = RbArray[i];
+		
+		vec2 RaPerpendicular = vec(-Ra.y, Ra.x);
+		vec2 RbPerpendicular = vec(-Rb.y, Rb.x);
+		
+		vec2 AngularLinearVelocityA = RaPerpendicular * A->AngularVelocity;
+		vec2 AngularLinearVelocityB = RbPerpendicular * B->AngularVelocity;
+		
+		vec2 RelativeVelocity = (B->LinearVelocity + AngularLinearVelocityB) -
+		(A->LinearVelocity + AngularLinearVelocityA);
+		
+		vec2 Tangent = RelativeVelocity - Dot(RelativeVelocity, OutNormal) * OutNormal;
+		if(Equals(Tangent, vec(0.0f, 0.0f)))
+		{
+			continue;
+		}
+		else
+		{
+			Tangent = Normalize(Tangent);
+		}
+		
+		real32 RaPerpendularDotTangent = Dot(RaPerpendicular, Tangent);
+		real32 RbPerpendularDotTangent = Dot(RbPerpendicular, Tangent);
+		
+		real32 Denom = A->InvMass + B->InvMass + 
+		(RaPerpendularDotTangent * RaPerpendularDotTangent) * A->InvIntertia +
+		(RbPerpendularDotTangent * RbPerpendularDotTangent) * B->InvIntertia;
+		
+		real32 jt = -1.0f * Dot(RelativeVelocity, Tangent);
+		jt /= Denom;
+		jt /= (real32) ContactCount;
+		
+		vec2 FrictionImpulse;
+		
+		if(Abs(jt) <= Jvalues[i] * StaticFriction)
+		{
+			FrictionImpulse = jt * Tangent;
+		}
+		else
+		{
+			FrictionImpulse = -Jvalues[i] * Tangent * DynamicFriction;
+		}
+		
+		Impulses[i] = FrictionImpulse;
 	}
 	
 	for(int i = 0;
@@ -626,7 +705,14 @@ ResolveCollisionWithOutRotation(collision_manifold* CollisionManifold)
     if (VelAlongNormal > 0.0f)
         return;
     
-    real32 j = -(1.0f + e) * VelAlongNormal;
+    real32 CurrentRestitution = e;
+	// NOTE: Threshold for resting contacts
+    if(Abs(VelAlongNormal) < 200.0f)
+    {
+        CurrentRestitution = 0.0f;
+    }
+    
+    real32 j = -(1.0f + CurrentRestitution) * VelAlongNormal;
     j /= A->InvMass + B->InvMass;
     
     // Multiply OutNormal by scalar impulse/mass instead of dividing by a vector
@@ -782,7 +868,7 @@ UpdatePhysicsWorld2d(physics_world2D* World, real32 ElapsedTime, int Iterations)
 	
 	real32 SubStepTime = ElapsedTime / Iterations;
 	
-	for(int it = 1; 
+	for(int it = 0; 
 		it < Iterations; 
 		it++)
 	{
@@ -794,7 +880,7 @@ UpdatePhysicsWorld2d(physics_world2D* World, real32 ElapsedTime, int Iterations)
 			ApplyGravity(&World->Bodies[i],
 						 World->Gravity, 
 						 World->ForceMultiplier, 
-						 ElapsedTime);
+						 SubStepTime);
 			
 			ApplyForce(&World->Bodies[i], SubStepTime);
 			RotatePhysicsBody(&World->Bodies[i], SubStepTime);

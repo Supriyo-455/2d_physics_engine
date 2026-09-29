@@ -217,7 +217,7 @@ inline real32 Dot(vec2 A, vec2 B)
 inline real32 Cross(vec2 A, vec2 B)
 {
 	
-	return A.x * B.y - B.x - A.y;
+	return A.x * B.y - A.y * B.x;
 }
 
 inline real32 Magnitude(vec2 A)

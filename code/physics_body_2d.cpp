@@ -59,6 +59,8 @@ CreateCirclePhysicsBody2D(physics_world2D* World, vec2 Position, real32 Radius, 
     Body.Shape = CIRCLE;
     Body.Radius = Radius;
     Body.Force = vec(0.0f, 0.0f);
+	Body.StaticFriction = 0.6f;
+	Body.DynamicFriction = 0.4f;
 	Body.Inertia = (1.0f / 2.0f) * Body.Mass * Body.Radius * Body.Radius;
     
     if(!Body.IsStatic)
@@ -97,7 +99,9 @@ CreateBoxPhysicsBody2D(physics_world2D* World, vec2 Position, real32 Width, real
     Body.Width = Width;
     Body.Height = Height;
     Body.Force = vec(0.0f, 0.0f);
-    
+    Body.StaticFriction = 0.6f;
+	Body.DynamicFriction = 0.4f;
+	
     Body.IsCollided = false;
     
     real32 HalfWidth = Width / 2.0f;

@@ -47,7 +47,9 @@ physics_body2D
     real32 Density;
     real32 Restitution;
     real32 Area;
-    
+    real32 StaticFriction;
+	real32 DynamicFriction;
+	
     vec2 Force;
     real32 Inertia;
 	real32 InvIntertia;

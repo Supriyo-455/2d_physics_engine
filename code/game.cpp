@@ -31,14 +31,17 @@
 [Done]
 * Broad phase and narrow phase separation.
 * Collision resolution with rotation
+* Friction
 
 [Planned]
 * Fix jittering by put the system on rest when collision resolution is very small.
-* Friction.
 * Damping -> Research on Simple harmonic motion and Damped harmonic motion, how they can be effective on making the engine stable.
 * Spring Physics -> Add spring physics
 * Pendulums ??? For hangling ropes in game.
 * Softbody physics
+
+[Bugs]
+* Circles falling on the bottom platform making jumps higher and higher from some invisible force, investigate on this and fix this issue.
 
 10) Engine enhancement -
 
@@ -94,10 +97,10 @@ InitializeGame(game* Game)
 														   SCREEN_WIDTH / 2,
 														   PADDING_20 + 1.0f,
 														   0.5f,
-														   0.5f,
+														   0.2f,
 														   true);
 	
-	BottomPlatform.Angle = PI / 9;
+	//BottomPlatform.Angle = PI / 9;
 	AddPhysicsBodyToGameWithRandomColor(Game, BottomPlatform);
 	
 	physics_body2D LeftPaddle = CreateBoxPhysicsBody2D(Game->World,
@@ -315,7 +318,7 @@ main(int argc, char* args[])
                 Game->World->Bodies[1].AngularVelocity = 0.0f;
             */
 			
-            UpdatePhysicsWorld2d(Game->World, (real32)(FPSTimer->DeltaTicks / 1000.0f), 20);
+            UpdatePhysicsWorld2d(Game->World, (real32)(FPSTimer->DeltaTicks / 1000.0f), 128);
             
 			DeleteOutofReachPhysicsBodies(Game);
 			
