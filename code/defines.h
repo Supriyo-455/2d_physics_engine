@@ -29,6 +29,9 @@
 #include <SDL/SDL_image.h>
 #include <SDL/SDL_ttf.h>
 
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
+
 typedef uint8_t uint8;
 typedef uint16_t uint16;
 typedef uint32_t uint32;
@@ -57,6 +60,7 @@ typedef double real64;
 
 #define SWAP(TYPE, A, B) { TYPE _MACRO_TEMP_; _MACRO_TEMP_ = A; A = B; B = _MACRO_TEMP_; } 
 
+// TODO: Use Arena Allocator and dump logs to file?
 void 
 __LogMessage(FILE* Stream, const char* File, int Line, const char* Prefix, const char* Format, ...) {
     char Buffer[2048];

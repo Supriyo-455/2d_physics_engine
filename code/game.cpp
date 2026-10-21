@@ -16,6 +16,7 @@
 * Hardware accelerated text rendering
 * Hardware accelerated texture rendering
 * Bloom effect.
+* Multi-threading
 
 4) Dynamic arrays
    
@@ -33,15 +34,15 @@
 * Collision resolution with rotation
 * Friction
 
+[Bugs Fixed]
+* Circles falling on the bottom platform making jumps higher and higher from some invisible force, investigate on this and fix this issue.
+
 [Planned]
 * Fix jittering by put the system on rest when collision resolution is very small.
 * Damping -> Research on Simple harmonic motion and Damped harmonic motion, how they can be effective on making the engine stable.
 * Spring Physics -> Add spring physics
 * Pendulums ??? For hangling ropes in game.
 * Softbody physics
-
-[Bugs]
-* Circles falling on the bottom platform making jumps higher and higher from some invisible force, investigate on this and fix this issue.
 
 10) Engine enhancement -
 
@@ -100,7 +101,7 @@ InitializeGame(game* Game)
 														   0.2f,
 														   true);
 	
-	//BottomPlatform.Angle = PI / 9;
+	BottomPlatform.Angle = PI;
 	AddPhysicsBodyToGameWithRandomColor(Game, BottomPlatform);
 	
 	physics_body2D LeftPaddle = CreateBoxPhysicsBody2D(Game->World,
@@ -181,6 +182,136 @@ main(int argc, char* args[])
 		int32 CountAttributes;
 		glGetIntegerv(GL_MAX_VERTEX_ATTRIBS, &CountAttributes);
 		LOG_INFO("Maximum number of vertex attributes supported: %d\n", CountAttributes);
+		
+		// TODO: Resizable screens
+		glViewport(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
+		glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+		glClear(GL_COLOR_BUFFER_BIT);
+		
+		real32 Vertices[] = {
+			// positions          // colors           // texture coords
+			0.5f,  0.5f, 0.0f,   1.0f, 0.0f, 0.0f,   1.0f, 1.0f, // top right
+			0.5f, -0.5f, 0.0f,   0.0f, 1.0f, 0.0f,   1.0f, 0.0f, // bottom right
+			-0.5f, -0.5f, 0.0f,   0.0f, 0.0f, 1.0f,   0.0f, 0.0f, // bottom left
+			-0.5f,  0.5f, 0.0f,   1.0f, 1.0f, 0.0f,   0.0f, 1.0f  // top left 
+		};
+		
+		uint32 Indices[] = {
+			0, 1, 3,
+			1, 2, 3
+		};
+		
+		// NOTE: Texture Wrapping settings
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_MIRRORED_REPEAT);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_MIRRORED_REPEAT);
+		
+		// NOTE: Texture filtering options
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		
+		// TODO: Use the color structure
+		real32 BorderColor[] = {1.0f, 1.0f, 0.0f, 1.0f};
+		glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, BorderColor);
+		
+		uint32 VAO;
+		glGenVertexArrays(1, &VAO);
+		
+		uint32 VBO;
+		glGenBuffers(1, &VBO);
+		
+		uint32 Texture;
+		glGenTextures(1, &Texture);
+		
+		uint32 EBO;
+		glGenBuffers(1, &EBO);
+		
+		glBindVertexArray(VAO);
+		
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+		glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(Indices), Indices, GL_STATIC_DRAW);
+		
+		glBindBuffer(GL_ARRAY_BUFFER, VBO);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(Vertices), Vertices, GL_STATIC_DRAW);
+		
+		// NOTE: Vertex position attribute
+		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(real32), (void*)0);
+		glEnableVertexAttribArray(0);
+		
+		// NOTE: Vertex color attribute
+		glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(real32), (void*)(3* sizeof(real32)));
+		glEnableVertexAttribArray(1);
+		
+		// NOTE: Vertex texture attibute
+		glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(real32), (void*)(6 * sizeof(real32)));
+		glEnableVertexAttribArray(2);  
+		
+		
+		int Width, Height, Channels;
+		const char* Path = "assets/wall.jpg";
+		uint8* Data = stbi_load(Path, &Width, &Height, &Channels, 0);
+		if(!Data)
+		{
+			LOG_ERROR("Failed to load texture from %s\n", Path);
+		}
+		else
+		{
+			glBindTexture(GL_TEXTURE_2D, Texture);  
+			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, Width, Height, 0, GL_RGB, GL_UNSIGNED_BYTE, Data);
+			glGenerateMipmap(GL_TEXTURE_2D);
+		}
+		
+		glBindTexture(GL_TEXTURE_2D, 0);
+		glBindVertexArray(0);
+		glBindBuffer(GL_ARRAY_BUFFER, 0);
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+		
+		uint32 VertexShader;
+		VertexShader = glCreateShader(GL_VERTEX_SHADER);
+		glShaderSource(VertexShader, 1, &VertexShaderSource, NULL);
+		glCompileShader(VertexShader);
+		
+		temp_memory_arena TempArena = TempMemoryArenaBegin(Game->MemoryArena);
+		
+		bool32 Success;
+		uint32 InfoLogLength = 512;
+		char* InfoLog = PushArray(TempArena.Arena, InfoLogLength, char);
+		
+		glGetShaderiv(VertexShader, GL_COMPILE_STATUS, &Success);
+		if(!Success)
+		{
+			glGetShaderInfoLog(VertexShader, InfoLogLength, NULL, InfoLog);
+			LOG_ERROR("Vertex shader compilation failed.. %s/n", InfoLog);
+		}
+		
+		uint32 FragmentShader;
+		FragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
+		glShaderSource(FragmentShader, 1, &FragmentShaderSource, NULL);
+		glCompileShader(FragmentShader);
+		
+		glGetShaderiv(FragmentShader, GL_COMPILE_STATUS, &Success);
+		if(!Success)
+		{
+			glGetShaderInfoLog(FragmentShader, InfoLogLength, NULL, InfoLog);
+			LOG_ERROR("Fragment shader compilation failed.. %s/n", InfoLog);
+		}
+		
+		uint32 ShaderProgram;
+		ShaderProgram = glCreateProgram();
+		
+		glAttachShader(ShaderProgram, VertexShader);
+		glAttachShader(ShaderProgram, FragmentShader);
+		glLinkProgram(ShaderProgram);
+		
+		glGetProgramiv(ShaderProgram, GL_LINK_STATUS, &Success);
+		if(!Success)
+		{
+			glGetProgramInfoLog(ShaderProgram, InfoLogLength, NULL, InfoLog);
+			LOG_ERROR("Shader program linking failed.. %s/n", InfoLog);
+		}
+		
+		TempMemoryArenaEnd(TempArena);
+		
+		// uint32 UniformOurColorLocation = glGetUniformLocation(ShaderProgram, "OurColor");
 #endif
 		
         while(Game->Running)
@@ -190,114 +321,21 @@ main(int argc, char* args[])
             HandleInput(Game);
             
 #if GPU_RENDERED
-			// TODO: Resizable screens
-			glViewport(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
 			glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 			glClear(GL_COLOR_BUFFER_BIT);
 			
-			real32 Vertices[] = {
-				// positions         // colors
-				0.5f, -0.5f, 0.0f,  1.0f, 0.0f, 0.0f,   // bottom right
-				-0.5f, -0.5f, 0.0f,  0.0f, 1.0f, 0.0f,   // bottom left
-				0.0f,  0.5f, 0.0f,  0.0f, 0.0f, 1.0f    // top  
-			};
-			
-			uint32 Indices[] = {
-				0, 1, 3,
-				1, 2, 3
-			};
-			
-			uint32 VAO;
-			glGenVertexArrays(1, &VAO);
-			
-			uint32 VBO;
-			glGenBuffers(1, &VBO);
-			
-			// uint32 EBO;
-			//glGenBuffers(1, &EBO);
-			
-			glBindVertexArray(VAO);
-			
-			// glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-			// glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(Indices), Indices, GL_STATIC_DRAW);
-			
-			glBindBuffer(GL_ARRAY_BUFFER, VBO);
-			glBufferData(GL_ARRAY_BUFFER, sizeof(Vertices), Vertices, GL_STATIC_DRAW);
-			
-			// NOTE: Vertex position attribute
-			glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(real32), (void*)0);
-			glEnableVertexAttribArray(0);
-			
-			// NOTE: Vertex color attribute
-			glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(real32), (void*)(3* sizeof(real32)));
-			glEnableVertexAttribArray(1);
-			
-			glBindVertexArray(0);
-			glBindBuffer(GL_ARRAY_BUFFER, 0);
-			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-			
-			uint32 VertexShader;
-			VertexShader = glCreateShader(GL_VERTEX_SHADER);
-			glShaderSource(VertexShader, 1, &VertexShaderSource, NULL);
-			glCompileShader(VertexShader);
-			
-			temp_memory_arena TempArena = TempMemoryArenaBegin(Game->MemoryArena);
-			
-			bool32 Success;
-			uint32 InfoLogLength = 512;
-			char* InfoLog = PushArray(TempArena.Arena, InfoLogLength, char);
-			
-			glGetShaderiv(VertexShader, GL_COMPILE_STATUS, &Success);
-			if(!Success)
-			{
-				glGetShaderInfoLog(VertexShader, InfoLogLength, NULL, InfoLog);
-				LOG_ERROR("Vertex shader compilation failed.. %s/n", InfoLog);
-			}
-			
-			uint32 FragmentShader;
-			FragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-			glShaderSource(FragmentShader, 1, &FragmentShaderSource, NULL);
-			glCompileShader(FragmentShader);
-			
-			glGetShaderiv(FragmentShader, GL_COMPILE_STATUS, &Success);
-			if(!Success)
-			{
-				glGetShaderInfoLog(FragmentShader, InfoLogLength, NULL, InfoLog);
-				LOG_ERROR("Fragment shader compilation failed.. %s/n", InfoLog);
-			}
-			
-			uint32 ShaderProgram;
-			ShaderProgram = glCreateProgram();
-			
-			glAttachShader(ShaderProgram, VertexShader);
-			glAttachShader(ShaderProgram, FragmentShader);
-			glLinkProgram(ShaderProgram);
-			
-			glGetProgramiv(ShaderProgram, GL_LINK_STATUS, &Success);
-			if(!Success)
-			{
-				glGetProgramInfoLog(ShaderProgram, InfoLogLength, NULL, InfoLog);
-				LOG_ERROR("Shader program linking failed.. %s/n", InfoLog);
-			}
-			
-			TempMemoryArenaEnd(TempArena);
-			
-			// uint32 UniformOurColorLocation = glGetUniformLocation(ShaderProgram, "OurColor");
-			
+			glBindTexture(GL_TEXTURE_2D, Texture);
 			glUseProgram(ShaderProgram);
 			glBindVertexArray(VAO);
 			
-			// glUniform4f(UniformOurColorLocation, 1.0f, 0.0f, 1.0f, 1.0f);
+			glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 			
-			// glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-			glDrawArrays(GL_TRIANGLES, 0, 3);
-			
-			
-			glDeleteShader(VertexShader);
-			glDeleteShader(FragmentShader);
 			glBindVertexArray(0);
+			glDeleteProgram(ShaderProgram);
+			glBindTexture(GL_TEXTURE_2D, 0);
 			
 			SDL_GL_SwapWindow(Game->Window);
+			
 			// NOTE: End of game loop
 #else
 			

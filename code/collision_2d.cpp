@@ -586,7 +586,9 @@ ResolveCollisionWithRotation(collision_manifold* CollisionManifold)
 		(RbPerpendularDotNormal * RbPerpendularDotNormal) * B->InvIntertia;
 		
 		real32 CurrentRestitution = e;
+		
 		// NOTE: Threshold for resting contacts
+		// TODO: Create a function to compare real values
 		if(Abs(ContactVelocityMag) < 200.0f)
 		{
 			CurrentRestitution = 0.0f;
@@ -612,6 +614,14 @@ ResolveCollisionWithRotation(collision_manifold* CollisionManifold)
 		
 		A->AngularVelocity = A->AngularVelocity - Cross(Ra, Impulses[i]) * A->InvIntertia;
 		B->AngularVelocity = B->AngularVelocity + Cross(Rb, Impulses[i]) * B->InvIntertia;
+	}
+	
+	// NOTE: Clearing Impulse array before friction calculation
+	for(int i = 0; 
+		i < ContactCount; 
+		i++) 
+	{
+		Impulses[i] = vec(0.0f, 0.0f);
 	}
 	
 	for(int i = 0;

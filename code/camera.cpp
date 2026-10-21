@@ -9,8 +9,8 @@ IsVisible(real32 ObjectX, real32 ObjectY,
     real32 ObjectTop = ObjectY - (ObjectHeight / 2.0f);
     real32 ObjectBottom = ObjectTop + ObjectHeight;
     
-    real32 ViewPortWidth = Camera->Width / Camera->Zoom;
-    real32 ViewPortHeight = Camera->Height / Camera->Zoom;
+    real32 ViewPortWidth = Camera->Width / Camera->MinZoom;
+    real32 ViewPortHeight = Camera->Height / Camera->MinZoom;
     real32 ViewPortLeft = Camera->Position.x - (ViewPortWidth / 2.0f);
     real32 ViewPortRight = ViewPortLeft + ViewPortWidth;
     real32 ViewPortTop = Camera->Position.y - (ViewPortHeight / 2.0f);
@@ -70,8 +70,8 @@ void
 DeleteOutofReachPhysicsBodies(game* Game)
 {
 	// NOTE: Delete physics objects if they leave the zoom level 0.030 bounds
-	real32 MaxViewWidth = Game->Camera.Width / Game->Camera.Zoom;
-	real32 MaxViewHeight = Game->Camera.Height / Game->Camera.Zoom;
+	real32 MaxViewWidth = Game->Camera.Width / Game->Camera.MinZoom;
+	real32 MaxViewHeight = Game->Camera.Height / Game->Camera.MinZoom;
 	real32 BoundLeft = Game->Camera.Position.x - (MaxViewWidth / 2.0f);
 	real32 BoundRight = Game->Camera.Position.x + (MaxViewWidth / 2.0f);
 	real32 BoundTop = Game->Camera.Position.y - (MaxViewHeight / 2.0f);

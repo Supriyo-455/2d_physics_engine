@@ -27,9 +27,9 @@ physics_world2D
 	vec2* ContactPoints;
 	uint32 ContactPointsCount;
 	
-	inline local_persist const real32 ForceMultiplier = 1000.0f;
+	inline local_persist const real32 ForceMultiplier = 10000.0f;
     
-	inline local_persist const int MaxIteration = 64;
+	inline local_persist const int MaxIteration = 128;
 	inline local_persist const int MinIteration = 1;
 	
     // NOTE: Gravity unit - meter/sec^2
