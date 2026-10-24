@@ -21,15 +21,21 @@ set compiler=-std:c++20 -nologo -Od -Gm- -GR- -EHa- -W4 -WX
 :: 4201: Nameless struct/union        | 4100: Unused parameter 
 :: 4189: Unused local variable        | 4505: Unreferenced local function 
 :: 4456: Variable shadowing           | 4127: Constant conditional
-set compiler=%compiler% -wd4201 -wd4100 -wd4189 -wd4505 -wd4456 -wd4127
+:: 4996: _CRT_SECURE_NO_WARNINGS
+set compiler=%compiler% -wd4201 -wd4100 -wd4189 -wd4505 -wd4456 -wd4127 -wd4996
 
 set compiler=%compiler% -I%third_party_path%include
 
-:: DEBUG & DEFINES
+:: DEBUG
 :: -FC : Output full absolute paths in diagnostics (crucial for 4coder jump-to-error)
 :: -Zi : Generate complete debugging information (.pdb)
 set debug=-FC -Zi
-set defines=-DENGINE_DEBUG=1
+
+:: DEFINES
+:: ENGINE_DEBUG			   :flag for slow code
+:: GPU_RENDERED 			  :flag for Hardware accelerated rendering
+:: SHOW_CONTACT_POITNS		:flag for showing contact points of collision
+set defines=-DENGINE_DEBUG=1 -DGPU_RENDERED=0 -DSHOW_CONTACT_POINTS=0
 
 :: LIBRARIES
 set win32_libs=user32.lib gdi32.lib winmm.lib shell32.lib

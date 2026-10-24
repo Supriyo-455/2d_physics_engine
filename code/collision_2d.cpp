@@ -551,7 +551,7 @@ ResolveCollisionWithRotation(collision_manifold* CollisionManifold)
 	vec2 Impulses[2] = {};
 	real32 Jvalues[2] = {};
 	
-	for(int i = 0;
+	for(uint32 i = 0;
 		i < ContactCount;
 		i++)
 	{
@@ -602,7 +602,7 @@ ResolveCollisionWithRotation(collision_manifold* CollisionManifold)
 		Impulses[i] = OutNormal * j;
 	}
 	
-	for(int i = 0;
+	for(uint32 i = 0;
 		i < ContactCount;
 		i++)
 	{
@@ -617,14 +617,14 @@ ResolveCollisionWithRotation(collision_manifold* CollisionManifold)
 	}
 	
 	// NOTE: Clearing Impulse array before friction calculation
-	for(int i = 0; 
+	for(uint32 i = 0; 
 		i < ContactCount; 
 		i++) 
 	{
 		Impulses[i] = vec(0.0f, 0.0f);
 	}
 	
-	for(int i = 0;
+	for(uint32 i = 0;
 		i < ContactCount;
 		i++)
 	{
@@ -678,7 +678,7 @@ ResolveCollisionWithRotation(collision_manifold* CollisionManifold)
 		Impulses[i] = FrictionImpulse;
 	}
 	
-	for(int i = 0;
+	for(uint32 i = 0;
 		i < ContactCount;
 		i++)
 	{
@@ -740,7 +740,7 @@ ResolveCollisionWithOutRotation(collision_manifold* CollisionManifold)
 bool32 
 ContainsContact(vec2* Contacts, uint32 ContactsCount, vec2 Target)
 {
-    for (int i = 0; 
+    for (uint32 i = 0; 
 		 i < ContactsCount; 
 		 i++)
     {
@@ -757,14 +757,14 @@ ContainsContact(vec2* Contacts, uint32 ContactsCount, vec2 Target)
 void
 CollisionResolutionBroadPhase(physics_world2D* World)
 {
-	for(int i = 0; 
+	for(uint32 i = 0; 
 		i < World->BodyCount-1; 
 		i++)
 	{
 		physics_body2D* BodyA = &World->Bodies[i];
 		AABB BodyA_AABB = GetAABBFromPhysicsBody(&World->Bodies[i]);
 		
-		for(int j = i + 1; 
+		for(uint32 j = i + 1; 
 			j < World->BodyCount; 
 			j++)
 		{
@@ -788,7 +788,7 @@ void
 CollisionResolutionNarrowPhase(physics_world2D* World)
 {
 	
-	for(int i = 0;
+	for(uint32 i = 0;
 		i < World->ContactPairsCount;
 		i++)
 	{
@@ -839,7 +839,7 @@ CollisionResolutionNarrowPhase(physics_world2D* World)
 	
 	
 	// TODO: Remove collision manifolds array and resolve collision from contact pairs
-	for(int i = 0; 
+	for(uint32 i = 0; 
 		i < World->CollisionManifoldsCount; 
 		i++)
 	{
@@ -883,7 +883,7 @@ UpdatePhysicsWorld2d(physics_world2D* World, real32 ElapsedTime, int Iterations)
 		it++)
 	{
 		// NOTE: Movement step
-		for(int i = 0; 
+		for(uint32 i = 0; 
 			i < World->BodyCount; 
 			i++)
 		{
@@ -901,7 +901,7 @@ UpdatePhysicsWorld2d(physics_world2D* World, real32 ElapsedTime, int Iterations)
 		}
 		
 		// NOTE: Reset collision state
-		for(int i = 0; 
+		for(uint32 i = 0; 
 			i < World->BodyCount; 
 			i++)
 		{

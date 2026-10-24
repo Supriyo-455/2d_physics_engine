@@ -138,7 +138,7 @@ LoadFileIntoBuffer(memory_arena* Arena, const char* Filename) {
 	uint64 Length = ftell(File);
     fseek(File, 0, SEEK_SET);
 	
-    char* Buffer = PushArray(Arena, Length, char);
+    char* Buffer = PushArray(Arena, Length + 1, char);
     if (Buffer) {
         fread(Buffer, 1, Length, File);
         Buffer[Length] = '\0';
@@ -146,6 +146,47 @@ LoadFileIntoBuffer(memory_arena* Arena, const char* Filename) {
 	
     fclose(File);
     return Buffer;
+}
+
+uint32
+LoadTexture(const char* TexturePath, uint32 TextureUnit)
+{
+	uint32 TextureID = NULL;
+	
+	int Width, Height, Channels;
+	uint8* Data = stbi_load(TexturePath, &Width, &Height, &Channels, 0);
+	if(!Data)
+	{
+		LOG_ERROR("Failed to load texture from %s\n", TexturePath);
+	}
+	else
+	{
+		glGenTextures(1, &TextureID);
+		
+		glActiveTexture(TextureUnit);
+		glBindTexture(GL_TEXTURE_2D, TextureID);
+		
+		// NOTE: Set texture wrapping and filtering parameters AFTER binding
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_MIRRORED_REPEAT);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_MIRRORED_REPEAT);
+		
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		
+		real32 BorderColor[] = {1.0f, 1.0f, 0.0f, 1.0f};
+		glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, BorderColor);
+		
+		
+		uint32 Format = (Channels == 4) ? GL_RGBA : GL_RGB;
+		glTexImage2D(GL_TEXTURE_2D, 0, Format, Width, Height, 0, Format, GL_UNSIGNED_BYTE, Data);
+		
+		glGenerateMipmap(GL_TEXTURE_2D);
+		
+		stbi_set_flip_vertically_on_load(true);
+		stbi_image_free(Data);
+	}
+	
+	return TextureID;
 }
 
 int
@@ -201,26 +242,11 @@ main(int argc, char* args[])
 			1, 2, 3
 		};
 		
-		// NOTE: Texture Wrapping settings
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_MIRRORED_REPEAT);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_MIRRORED_REPEAT);
-		
-		// NOTE: Texture filtering options
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-		
-		// TODO: Use the color structure
-		real32 BorderColor[] = {1.0f, 1.0f, 0.0f, 1.0f};
-		glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, BorderColor);
-		
 		uint32 VAO;
 		glGenVertexArrays(1, &VAO);
 		
 		uint32 VBO;
 		glGenBuffers(1, &VBO);
-		
-		uint32 Texture;
-		glGenTextures(1, &Texture);
 		
 		uint32 EBO;
 		glGenBuffers(1, &EBO);
@@ -245,22 +271,18 @@ main(int argc, char* args[])
 		glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(real32), (void*)(6 * sizeof(real32)));
 		glEnableVertexAttribArray(2);  
 		
+		uint32 Texture1 = LoadTexture("assets/wall.jpg", GL_TEXTURE0);
+		uint32 Texture2 = LoadTexture("assets/awesomeface.png", GL_TEXTURE1);
 		
-		int Width, Height, Channels;
-		const char* Path = "assets/wall.jpg";
-		uint8* Data = stbi_load(Path, &Width, &Height, &Channels, 0);
-		if(!Data)
-		{
-			LOG_ERROR("Failed to load texture from %s\n", Path);
-		}
-		else
-		{
-			glBindTexture(GL_TEXTURE_2D, Texture);  
-			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, Width, Height, 0, GL_RGB, GL_UNSIGNED_BYTE, Data);
-			glGenerateMipmap(GL_TEXTURE_2D);
-		}
+		// TODO: Unbind everything after setup, we will bind required things in game loop
 		
+		// TODO: Smart way to unbind all textures before game loop?
+		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D, 0);
+		
+		glActiveTexture(GL_TEXTURE1);
+		glBindTexture(GL_TEXTURE_2D, 0);
+		
 		glBindVertexArray(0);
 		glBindBuffer(GL_ARRAY_BUFFER, 0);
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
@@ -311,7 +333,9 @@ main(int argc, char* args[])
 		
 		TempMemoryArenaEnd(TempArena);
 		
-		// uint32 UniformOurColorLocation = glGetUniformLocation(ShaderProgram, "OurColor");
+		glUseProgram(ShaderProgram);
+		glUniform1i(glGetUniformLocation(ShaderProgram, "texture1"), 0);
+		glUniform1i(glGetUniformLocation(ShaderProgram, "texture2"), 1);
 #endif
 		
         while(Game->Running)
@@ -324,14 +348,18 @@ main(int argc, char* args[])
 			glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 			glClear(GL_COLOR_BUFFER_BIT);
 			
-			glBindTexture(GL_TEXTURE_2D, Texture);
 			glUseProgram(ShaderProgram);
+			
+			glActiveTexture(GL_TEXTURE0);
+			glBindTexture(GL_TEXTURE_2D, Texture1);
+			glActiveTexture(GL_TEXTURE1);
+			glBindTexture(GL_TEXTURE_2D, Texture2);
+			
 			glBindVertexArray(VAO);
 			
 			glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 			
 			glBindVertexArray(0);
-			glDeleteProgram(ShaderProgram);
 			glBindTexture(GL_TEXTURE_2D, 0);
 			
 			SDL_GL_SwapWindow(Game->Window);
@@ -363,7 +391,7 @@ main(int argc, char* args[])
             ClearRenderer(Game->Renderer, BLACK);
             
             // NOTE: Render all the physics bodies
-            for(int i = 0; 
+            for(uint32 i = 0; 
 				i < Game->World->BodyCount; 
 				i++)
             {

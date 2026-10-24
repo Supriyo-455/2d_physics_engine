@@ -77,7 +77,7 @@ DeleteOutofReachPhysicsBodies(game* Game)
 	real32 BoundTop = Game->Camera.Position.y - (MaxViewHeight / 2.0f);
 	real32 BoundBottom = Game->Camera.Position.y + (MaxViewHeight / 2.0f);
 	
-	for(int i = 0; 
+	for(uint32 i = 0; 
 		i < Game->World->BodyCount;)
 	{
 		if(!Game->World->Bodies[i].IsStatic)

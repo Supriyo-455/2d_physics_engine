@@ -13,17 +13,23 @@ Abs(real32 x)
     return x;
 }
 
+inline real32 
+absf(real32 x)
+{
+    return Abs(x);
+}
+
 inline uint32 
 RoundReal32ToUint32(real32 f)
 {
-    uint32 Result = roundf(f);
+    uint32 Result = (uint32) roundf(f);
     return Result;
 }
 
 inline int 
 Floor(real32 f)
 {
-    int Result = floorf(f);
+    int Result = (int) floorf(f);
     return Result;
 }
 
@@ -298,8 +304,8 @@ inline vec2 operator*(real32 A, vec2 B)
 inline vec2 operator/(vec2 B, real32 A)
 {
     vec2 Result;
-    Result.x = A / B.x;
-    Result.y = A / B.y;
+    Result.x = B.x / A;
+    Result.y = B.y / A;
     return Result;
 }
 
@@ -558,7 +564,7 @@ inline mat4x4 operator*(mat4x4 A, mat4x4 B)
 				 i < 4; 
 				 i++)
             {
-                R.E[r][c] += A.E[r][i] + B.E[i][c];
+                R.E[r][c] += A.E[r][i] * B.E[i][c];
             }
         }
     }

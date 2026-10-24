@@ -3,6 +3,10 @@
 #ifndef PHYSICS2_D_H
 #define PHYSICS2_D_H
 
+struct physics_body2D;
+struct contact_pair;
+struct collision_manifold;
+
 #define MAX_BODIES 4096
 #define MAX_CONTACT_PAIRS 100000
 #define MAX_COLLISION_MANIFOLDS 100000

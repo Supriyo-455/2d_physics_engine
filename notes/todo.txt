@@ -4,3 +4,9 @@ Issues ->
 * The drawing code is bad may be make it better by not hard-coding the colors by default.
 * Overall code is messy compress out functions that can be reused.
 * FPS is compromised when creating more than 200 physics bodies, this is worst performing physics engine.
+
+
+Priorities ->
+* Opengl Renderer, GPU rendered shapes and world
+* Profiler
+* Multi-threading

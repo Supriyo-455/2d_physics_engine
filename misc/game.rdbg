@@ -1,6 +1,6 @@
-// raddbg 0.9.24 user file
+// raddbg 0.9.29 user file
 
-recent_project: path: "C:\\Users\\pauls\\AppData\\Roaming/raddbg/default.raddbg_project"
+recent_project: path: "../../../../AppData/Roaming/raddbg/default.raddbg_project"
 window:
 {
   size: 1536.000000 825.599976
@@ -69,6 +69,8 @@ window:
         cursor_column: 1
         mark_line: 498
         mark_column: 1
+        cursor: 0x0
+        mark: 0x0
       }
       text:
       {
@@ -87,7 +89,7 @@ window:
     }
   }
   split_x
-  pos: -1728 103
+  pos: 216 127
   monitor: "\\\\.\\DISPLAY1"
   maximized
 }
@@ -210,5 +212,5 @@ keybindings:
   { log_marker m ctrl shift alt }
   { toggle_dev_menu d ctrl shift alt }
 }
-current_path: "D:/projects/physics_engine/code"
+current_path: "C:/Users/pauls/Documents/dev/2d_physics_engine/code"
 file_path_map

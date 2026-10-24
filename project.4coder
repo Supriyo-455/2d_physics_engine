@@ -60,7 +60,7 @@ commands = {
 		.cursor_at_end = true,
 	},
 	.run = {
-		.win = "echo Running the engine & ./misc/run.sh",
+		.win = "echo Running the engine & misc\\run.bat",
 		.linux = "echo Running the engine && ./misc/run.sh",
 		.out = "*compilation*",		
 		.footer_panel = false,
