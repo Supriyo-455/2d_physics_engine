@@ -19,7 +19,6 @@ window:
       selected
       text:
       {
-        selected
         expression: "file:\"C:/Users/pauls/Documents/dev/2d_physics_engine/code/game.cpp\".data"
         auto: 1
         query:
@@ -31,11 +30,11 @@ window:
         cursor_column: 1
         mark_line: 1
         mark_column: 1
-        cursor: 0x30f8
-        mark: 0x30f8
+        cursor: 0xb5
+        mark: 0xb5
         project: ""
       }
-      watch: expression: "query:breakpoints"
+      watch: selected expression: "query:breakpoints"
       watch: expression: "query:modules"
       watch: expression: "query:watch_pins"
       disasm:
@@ -203,7 +202,13 @@ current_path: "C:/Users/pauls/Documents/dev/2d_physics_engine"
 file_path_map
 debug_info:
 {
-  path: "C:/Users/pauls/Documents/dev/2d_physics_engine/build/GAME_30970.pdb"
-  timestamp: 66230488720728
+  path: "C:/Users/pauls/Documents/dev/2d_physics_engine/build/GAME_12364.pdb"
+  timestamp: 66230532766144
+  project: "C:/Users/pauls/Documents/dev/2d_physics_engine/project.rdbg"
+}
+debug_info:
+{
+  path: "C:/Users/pauls/Documents/dev/2d_physics_engine/build/game_8604.pdb"
+  timestamp: 66230532765521
   project: "C:/Users/pauls/Documents/dev/2d_physics_engine/project.rdbg"
 }

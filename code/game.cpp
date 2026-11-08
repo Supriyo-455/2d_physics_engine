@@ -6,6 +6,8 @@
 #include "collision_2d.cpp"
 #include "camera.cpp"
 
+internal void ExportAndRenderDebugRecords(game_memory* Memory, game_render_commands* RenderCommands);
+
 vec4
 GenerateDarkRandomColor()
 {
@@ -30,6 +32,8 @@ GenerateDarkRandomColors(vec4* ColorArray, int ArrayCount)
 void
 UpdatePhysicsWorld2d(physics_world2D* World, real32 ElapsedTime, int Iterations)
 {
+    TIMED_BLOCK(PhysicsUpdateTotal);
+    
 	Iterations = Clamp(Iterations, World->MinIteration, World->MaxIteration);
 	
 	real32 SubStepTime = ElapsedTime / Iterations;
@@ -265,4 +269,39 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     snprintf(Buf, sizeof(Buf), "FPS: %d | Bodies: %d | Zoom: %0.2f  [C/Click: Circle, B: Box, R: Reset]", 
              FPS, GameState->World->BodyCount, GameState->Camera.Zoom);
     PushText(RenderCommands, vec(20.0f, 20.0f), Buf, WHITE, 24);
+    
+    ExportAndRenderDebugRecords(Memory, RenderCommands);
+}
+
+debug_record DebugRecordArray[__COUNTER__];
+
+internal void
+ExportAndRenderDebugRecords(game_memory* Memory, game_render_commands* RenderCommands)
+{
+    Memory->DebugRecordCount = (uint32)ARRAY_COUNT(DebugRecordArray);
+    Memory->DebugRecords     = DebugRecordArray;
+    
+    real32 DebugY = 50.0f;
+    for(uint32 RecordIndex = 0; RecordIndex < (uint32)ARRAY_COUNT(DebugRecordArray); ++RecordIndex)
+    {
+        debug_record* Record = DebugRecordArray + RecordIndex;
+        if(Record->BlockName)
+        {
+            char RecordBuf[256];
+            
+            real32 MegaCycles = (real32)Record->CycleCount / (1000.0f * 1000.0f);
+            uint32 CyclesPerHit = (Record->HitCount > 0) ? (uint32)(Record->CycleCount / Record->HitCount) : 0;
+            
+            snprintf(RecordBuf, sizeof(RecordBuf),
+                     "%s: %.2f Mcy (%u hits, %u cy/hit)",
+                     Record->BlockName, MegaCycles, Record->HitCount, CyclesPerHit);
+            
+            PushText(RenderCommands, vec(20.0f, DebugY), RecordBuf, YELLOW, 20);
+            
+            DebugY += 24.0f;
+            
+            Record->CycleCount = 0;
+            Record->HitCount = 0;
+        }
+    }
 }

@@ -21,6 +21,7 @@ Designed with a data-oriented, decoupled architecture inspired by *Handmade Hero
   - Narrowphase: **Separating Axis Theorem (SAT)** with contact manifold generation.
   - Sequential impulse resolution supporting restitution, angular inertia, and Coulomb friction.
 - **Decoupled Render Command Buffer**: Simulation emits abstract draw packets (`PushClear`, `PushQuad`, `PushCircle`, `PushText`) consumed by the platform backend.
+- **Cycle-Accurate Hardware Profiling**: Compile-time instrumentation (`TIMED_BLOCK`, `TIMED_FUNCTION`) using `__COUNTER__` and `__rdtsc()` for zero-branch, sub-nanosecond telemetry measuring clock cycles and invocation hit counts.
 - **Automated Test Suite**: Comprehensive floating-point test suite covering vectors, matrices, transforms, and trigonometry with 100% pass verification.
 
 > [!NOTE]
@@ -99,6 +100,7 @@ chmod +x misc/*.sh
 │   ├── simple_math.h       # Vector, matrix, trig, and coordinate transformations
 │   ├── memory.h / cpp      # Linear memory arena bump allocators
 │   ├── camera.h / cpp      # Viewport pan, zoom, and world-to-screen projection
+│   ├── performance.h       # Compile-time cycle profiler & telemetry (__COUNTER__ & __rdtsc)
 │   └── all_tests.cpp       # Automated unit test suite
 ├── misc/
 │   ├── build.bat / build.sh# Build scripts for Windows & Linux
@@ -120,5 +122,6 @@ For a complete breakdown of the engine's internal systems, read **[`TECHNICAL_DE
 - **[Dual-Tier Memory Model](TECHNICAL_DETAILS.md#memory-management-architecture)** (Permanent vs. Transient storage, memory map)
 - **[Live Code Hot-Reloading](TECHNICAL_DETAILS.md#live-code-hot-reloading-pipeline)** (PDB randomization, shadow copying, lock-file synchronization)
 - **[Render Command Queue](TECHNICAL_DETAILS.md#render-command-buffer-pipeline)** (Hardware decoupling, command structures)
+- **[Hardware Telemetry & Profiler](TECHNICAL_DETAILS.md#telemetry--performance-profiling-subsystem)** (Compile-time `__COUNTER__` indexing, cycle counting, hot-reload publishing)
 - **[Physics & Collision Engine](TECHNICAL_DETAILS.md#core-physics--simulation-subsystems)** (SAT derivation, impulse formulas)
 - **[Testing & Tooling](TECHNICAL_DETAILS.md#automated-testing-framework)** (Test modules, 4coder, RAD Debugger, Qt Creator)

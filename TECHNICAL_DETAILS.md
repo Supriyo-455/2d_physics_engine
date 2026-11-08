@@ -29,6 +29,12 @@ This document provides an in-depth technical analysis of the 2D Physics Engine's
   - [Collision Pipeline (Broadphase & SAT Narrowphase)](#collision-pipeline-broadphase--sat-narrowphase)
   - [Impulse Resolution & Friction](#impulse-resolution--friction)
   - [Camera & Coordinate Projection](#camera--coordinate-projection)
+- [Telemetry & Performance Profiling Subsystem](#telemetry--performance-profiling-subsystem)
+  - [Compile-Time Indexing via `__COUNTER__`](#compile-time-indexing-via-__counter__)
+  - [Zero-Branch Hardware Timing (`__rdtsc`)](#zero-branch-hardware-timing-__rdtsc)
+  - [Data-Oriented Cache Line Efficiency](#data-oriented-cache-line-efficiency)
+  - [Cross-DLL Hot-Reload Publishing](#cross-dll-hot-reload-publishing)
+  - [Cycle Accounting & Telemetry Metrics](#cycle-accounting--telemetry-metrics)
 - [Automated Testing Framework](#automated-testing-framework)
   - [Test Architecture](#test-architecture)
   - [Detailed Test Modules](#detailed-test-modules)
@@ -316,6 +322,145 @@ Collisions are resolved through sequential impulse formulation:
 - World-to-screen (`WorldToScreen`) and screen-to-world (`GetRelativeWorldPosition`) projection matrices.
 - Smooth panning with right-click drag and exponential zoom centered on mouse coordinates.
 - Frustum visibility culling (`IsVisible`) and automatic out-of-bounds entity cleanup (`DeleteOutofReachPhysicsBodies`).
+
+---
+
+## Telemetry & Performance Profiling Subsystem
+
+*Files: [`code/performance.h`](code/performance.h), [`code/game_platform.h`](code/game_platform.h), [`code/game.cpp`](code/game.cpp)*
+
+To achieve real-time insight into the physics simulation, narrowphase collision iterations, and rendering bottlenecks, the engine incorporates an ultra-low-overhead, hardware-accurate profiling system inspired by *Handmade Hero*.
+
+```
++---------------------------------------------------------------------------------------------------------+
+|                                    COMPILE-TIME / ZERO-OVERHEAD PROFILER                                |
++---------------------------------------------------------------------------------------------------------+
+|  1. Compile-Time Slot Assignment:                                                                       |
+|     TIMED_BLOCK(PhysicsUpdate);  --> Baked into immediate constant index [DebugRecordArray + 0]         |
+|     TIMED_BLOCK(BroadPhase);     --> Baked into immediate constant index [DebugRecordArray + 32]        |
+|                                                                                                         |
+|  2. RAII Algebraic Cycle Accumulation:                                                                  |
+|     Entry  (Constructor) :  Record->CycleCount -= __rdtsc(); Record->HitCount++;                       |
+|     Exit   (Destructor)  :  Record->CycleCount += __rdtsc();                                            |
+|                                                                                                         |
+|  3. Data-Oriented Layout (32-byte struct):                                                              |
+|     [ BlockName (8B) | FileName (8B) | LineNumber (4B) | HitCount (4B) | CycleCount (8B) ]              |
+|     ==> Exactly 2 records per 64-byte L1 CPU Cache Line. Zero cache line pollution.                     |
+|                                                                                                         |
+|  4. Cross-DLL Hot-Reload Publishing:                                                                    |
+|     At bottom of GameUpdateAndRender:                                                                   |
+|     Memory->DebugRecordCount = ARRAY_COUNT(DebugRecordArray);                                           |
+|     Memory->DebugRecords     = DebugRecordArray;                                                        |
++---------------------------------------------------------------------------------------------------------+
+```
+
+### Compile-Time Indexing via `__COUNTER__`
+
+Traditional game engine profilers rely on runtime hash tables, string lookups, or dynamic registration functions (`RegisterCounter()`). In tight loops (such as broadphase pair checks running thousands of times per frame), dynamic registration exhibits severe architectural flaws:
+1. **Hidden Guard Check Overhead**: C++ `static uint32 Index = RegisterCounter(...)` generates a hidden thread-safe static guard variable (`$TSS0`). The CPU must execute an extra branch check on **every single entry** to verify initialization, degrading CPU branch prediction.
+2. **Startup & Lookup Churn**: Looping or hashing strings at startup or on scope entry pollutes L1/L2 data caches.
+
+By contrast, the engine utilizes the compiler intrinsic `__COUNTER__`:
+```cpp
+#define TIMED_BLOCK__(BlockName, Line) timed_block TimedBlock##Line(__COUNTER__, #BlockName, __FILE__, Line)
+#define TIMED_BLOCK_(BlockName, Line)  TIMED_BLOCK__(BlockName, Line)
+#define TIMED_BLOCK(BlockName)         TIMED_BLOCK_(BlockName, __LINE__)
+#define TIMED_FUNCTION()               TIMED_BLOCK(__FUNCTION__)
+```
+Each macro invocation expands `__COUNTER__` into an integer literal ($0, 1, 2, \dots$), resolving slot indices **100% at compile time**. At the bottom of [`code/game.cpp`](code/game.cpp), the array is sized exactly to the number of counters used:
+```cpp
+debug_record DebugRecordArray[__COUNTER__];
+```
+In machine code, indexing resolves to a single direct register-displacement calculation:
+```asm
+lea rax, [DebugRecordArray + 32]   ; Direct offset - zero branches, zero runtime math
+```
+
+### Zero-Branch Hardware Timing (`__rdtsc`)
+
+Timers reliant on OS kernel calls (e.g. `clock_gettime`, `GetSystemTime`, or even `SDL_GetPerformanceCounter`) consume hundreds of CPU cycles per invocation. 
+
+The engine instead samples the CPU's internal Time-Stamp Counter via `__rdtsc()`, which executes in $\sim 15\text{ cycles}$. Rather than storing a `StartCycle` on the stack inside each `timed_block` instance, elapsed cycles are accumulated algebraically:
+$$\Delta C = C_{\text{exit}} - C_{\text{entry}} \implies C_{\text{total}} \leftarrow C_{\text{total}} - C_{\text{entry}} + C_{\text{exit}}$$
+
+```cpp
+struct timed_block
+{
+    debug_record* Record;
+
+    timed_block(uint32 Counter, const char* BlockName, const char* FileName, uint32 LineNumber)
+    {
+        Record = DebugRecordArray + Counter;
+        Record->BlockName  = BlockName;
+        Record->FileName   = FileName;
+        Record->LineNumber = LineNumber;
+        Record->CycleCount -= __rdtsc();
+        Record->HitCount++;
+    }
+
+    ~timed_block()
+    {
+        Record->CycleCount += __rdtsc();
+    }
+};
+```
+This reduces the stack footprint of a `timed_block` RAII scope to **just a single 8-byte pointer**.
+
+### Data-Oriented Cache Line Efficiency
+
+Modern x64 CPUs fetch data into L1/L2 caches in **64-byte cache lines**. The `debug_record` structure is explicitly packed to 32 bytes:
+
+```cpp
+struct debug_record
+{
+    const char* BlockName;  // 8 bytes (Cold metadata)
+    const char* FileName;   // 8 bytes (Cold metadata)
+    uint32 LineNumber;      // 4 bytes (Cold metadata)
+    uint32 HitCount;        // 4 bytes (Hot telemetry)
+    uint64 CycleCount;      // 8 bytes (Hot telemetry)
+};                          // Total: 32 bytes
+```
+
+**Cache Advantages:**
+- **Exact Power-of-Two Packing**: Exactly two `debug_record` instances fit within a single 64-byte L1 cache line.
+- **Locality**: Writing `BlockName` and updating `CycleCount` touches bytes within the exact same cache line, preventing supplementary memory bus transactions.
+
+### Cross-DLL Hot-Reload Publishing
+
+Because `game.dll` and `Game.exe` compile as separate binary modules, `DebugRecordArray` lives in `game.dll`'s static data segment.
+
+Instead of writing DLL export functions or complex cross-process IPC:
+1. [`code/game_platform.h`](code/game_platform.h) defines the contract on `game_memory`:
+   ```cpp
+   struct game_memory
+   {
+       // ...
+       uint32 DebugRecordCount;
+       debug_record* DebugRecords;
+   };
+   ```
+2. At the end of `GameUpdateAndRender`, `game.dll` publishes its array pointer and size to `Memory`:
+   ```cpp
+   Memory->DebugRecordCount = (uint32)ARRAY_COUNT(DebugRecordArray);
+   Memory->DebugRecords     = DebugRecordArray;
+   ```
+3. When `game.dll` is hot-reloaded, Windows remaps the new DLL to a new virtual address space and `__COUNTER__` can change dynamically. On the very next frame, `GameUpdateAndRender` points `Memory->DebugRecords` directly to the new array with zero stale pointer bugs or registration tables.
+
+### Cycle Accounting & Telemetry Metrics
+
+The on-screen HUD renders real-time cycle telemetry alongside FPS:
+
+| Metric | Code Representation | Description |
+| :--- | :--- | :--- |
+| **Cycles (`cy`)** | `Record->CycleCount` | Raw hardware clock ticks executed by the CPU. |
+| **Mega-Cycles (`Mcy`)** | `CycleCount / 1,000,000` | Human-readable unit ($10^6\text{ cycles}$). |
+| **Hit Count (`hits`)** | `Record->HitCount` | Invocations within the active frame. |
+| **Cycles / Hit (`cy/hit`)** | `CycleCount / HitCount` | Average algorithmic cost per call. Pinpoints algorithmic inefficiency vs loop frequency. |
+
+#### Empirical Reference Scale (at $\sim 3.0\text{ GHz}$ CPU Clock):
+- **$60\text{ FPS Frame Budget}$ ($16.6\text{ ms}$)**: $\approx 50,000,000\text{ cycles}$ ($50\text{ Mcy}$).
+- **$1\text{ millisecond}$ ($1.0\text{ ms}$)**: $\approx 3,000,000\text{ cycles}$ ($3\text{ Mcy}$).
+- **$1\text{ microsecond}$ ($1.0\text{ }\mu\text{s}$)**: $\approx 3,000\text{ cycles}$.
 
 ---
 

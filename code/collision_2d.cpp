@@ -88,6 +88,8 @@ FindContactPointsCircleAndPolygon(vec2 CircleCenter,
 								  int PolygonVerticesCount,
 								  vec2* ContactPoint)
 {
+    TIMED_BLOCK(ContactPointsFindingBetweenBoxesAndCircles);
+    
 	real32 MinDistance = FLT_MAX;
     real32 Distance;
 	vec2 Point = vec(0.0f, 0.0f);
@@ -120,7 +122,9 @@ FindContactPointsCircles(vec2 CenterA,
 						 real32 RadiusB, 
 						 vec2* ContactPoint)
 {
-	vec2 A2B = CenterB - CenterA;
+	TIMED_BLOCK(ContactPointsFindingBetweenCircles);
+    
+    vec2 A2B = CenterB - CenterA;
 	vec2 Direction = Normalize(A2B);
 	*ContactPoint = CenterA + Direction * RadiusA;
 }
@@ -134,6 +138,8 @@ FindContactPointsBoxes(vec2* VerticesA,
 					   vec2* Contact2,
 					   uint32* ContactCount)
 {
+    TIMED_BLOCK(ContactPointsFindingBetweenBoxes);
+    
 	real32 MinDistance = FLT_MAX;
 	real32 Distance;
 	vec2 ClosestPoint = vec(0.0f, 0.0f);
@@ -757,6 +763,8 @@ ContainsContact(vec2* Contacts, uint32 ContactsCount, vec2 Target)
 void
 CollisionResolutionBroadPhase(physics_world2D* World)
 {
+    TIMED_BLOCK(CollisionBroadPhase);
+    
 	for(uint32 i = 0; 
 		i < World->BodyCount-1; 
 		i++)
@@ -787,7 +795,8 @@ CollisionResolutionBroadPhase(physics_world2D* World)
 void
 CollisionResolutionNarrowPhase(physics_world2D* World)
 {
-	
+	TIMED_BLOCK(CollisionNarrowPhase);
+    
 	for(uint32 i = 0;
 		i < World->ContactPairsCount;
 		i++)

@@ -58,7 +58,7 @@ set DLL_PDB_NAME=game_%RANDOM%.pdb
 
 echo [BUILD] Compiling %DLL_NAME%.dll...
 
-cl %common_compiler% %defines% %code_path%game.cpp ^
+cl %common_compiler% -DDebugRecordArray=DebugRecordMain %defines% %code_path%game.cpp ^
    -LD /link %common_link% /PDB:%DLL_PDB_NAME% /EXPORT:GameUpdateAndRender ^
    /OUT:%DLL_NAME%.dll
 
@@ -75,7 +75,7 @@ set EXE_PDB_NAME=GAME_%RANDOM%.pdb
 
 echo [BUILD] Compiling %EXE_NAME%.exe...
 
-cl %common_compiler% %defines% %code_path%sdl_main.cpp ^
+cl %common_compiler% -DDebugRecordArray=DebugRecordSDL %defines% %code_path%sdl_main.cpp ^
    %sdl_libs% %win32_libs% ^
    /link %common_link% -subsystem:console /LIBPATH:%third_party_path%lib ^
    /PDB:%EXE_PDB_NAME% /OUT:%EXE_NAME%.exe

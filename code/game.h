@@ -8,6 +8,7 @@
 #include "collision_2d.h"
 #include "physics_2d.h"
 #include "camera.h"
+#include "performance.h"
 
 global vec4 WHITE = {
 	.r=1.0f,

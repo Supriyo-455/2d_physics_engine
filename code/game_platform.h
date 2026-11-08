@@ -3,6 +3,7 @@
 
 #include "defines.h"
 #include "simple_math.h"
+#include "performance.h"
 
 struct game_button_state
 {
@@ -38,7 +39,8 @@ struct game_input
     };
 };
 
-inline bool32 WasPressed(game_button_state State)
+inline bool32 
+WasPressed(game_button_state State)
 {
     return (State.HalfTransitionCount > 1 || 
             (State.HalfTransitionCount == 1 && State.EndedDown));
@@ -53,6 +55,9 @@ struct game_memory
     
     uint64 TransientStorageSize;
     void*  TransientStorage;
+    
+    uint32 DebugRecordCount;
+    debug_record* DebugRecords;
 };
 
 enum render_command_type
@@ -127,7 +132,8 @@ struct game_render_commands
 #define PushRenderCommand(Commands, type) \
 (type*)PushRenderCommand_(Commands, sizeof(type), RenderCommand_##type)
 
-inline void* PushRenderCommand_(game_render_commands* Commands, uint32 Size, render_command_type Type)
+inline void* 
+PushRenderCommand_(game_render_commands* Commands, uint32 Size, render_command_type Type)
 {
     void* Result = NULL;
     
@@ -149,7 +155,8 @@ inline void* PushRenderCommand_(game_render_commands* Commands, uint32 Size, ren
     return Result;
 }
 
-inline void PushClear(game_render_commands* Commands, vec4 Color)
+inline void 
+PushClear(game_render_commands* Commands, vec4 Color)
 {
     render_command_clear* Cmd = (render_command_clear*)PushRenderCommand_(Commands, sizeof(render_command_clear), RenderCommand_Clear);
     
@@ -159,7 +166,8 @@ inline void PushClear(game_render_commands* Commands, vec4 Color)
     }
 }
 
-inline void PushQuad(game_render_commands* Commands, vec2 Verts[4], vec4 FillColor, vec4 OutlineColor = {}, bool32 HasOutline = false)
+inline void 
+PushQuad(game_render_commands* Commands, vec2 Verts[4], vec4 FillColor, vec4 OutlineColor = {}, bool32 HasOutline = false)
 {
     render_command_quad* Cmd = (render_command_quad*)PushRenderCommand_(Commands, sizeof(render_command_quad), RenderCommand_Quad);
     
@@ -175,7 +183,8 @@ inline void PushQuad(game_render_commands* Commands, vec2 Verts[4], vec4 FillCol
     }
 }
 
-inline void PushCircle(game_render_commands* Commands, vec2 Pos, real32 Radius, real32 Angle, vec4 FillColor, vec4 OutlineColor = {}, bool32 HasOutline = false)
+inline void 
+PushCircle(game_render_commands* Commands, vec2 Pos, real32 Radius, real32 Angle, vec4 FillColor, vec4 OutlineColor = {}, bool32 HasOutline = false)
 {
     render_command_circle* Cmd = (render_command_circle*)PushRenderCommand_(Commands, sizeof(render_command_circle), RenderCommand_Circle);
     
@@ -190,14 +199,15 @@ inline void PushCircle(game_render_commands* Commands, vec2 Pos, real32 Radius, 
     }
 }
 
-inline void PushBox(game_render_commands* Commands, 
-                    vec2 Center, 
-                    real32 Width, 
-                    real32 Height, 
-                    real32 Angle, 
-                    vec4 FillColor, 
-                    vec4 OutlineColor = {}, 
-                    bool32 HasOutline = false)
+inline void 
+PushBox(game_render_commands* Commands, 
+        vec2 Center, 
+        real32 Width, 
+        real32 Height, 
+        real32 Angle, 
+        vec4 FillColor, 
+        vec4 OutlineColor = {}, 
+        bool32 HasOutline = false)
 {
     real32 HalfW = Width * 0.5f;
     real32 HalfH = Height * 0.5f;
@@ -221,7 +231,8 @@ inline void PushBox(game_render_commands* Commands,
     PushQuad(Commands, Verts, FillColor, OutlineColor, HasOutline);
 }
 
-inline void PushLine(game_render_commands* Commands, vec2 From, vec2 To, vec4 Color)
+inline void 
+PushLine(game_render_commands* Commands, vec2 From, vec2 To, vec4 Color)
 {
     render_command_line* Cmd = (render_command_line*)PushRenderCommand_(Commands, sizeof(render_command_line), RenderCommand_Line);
     
@@ -233,7 +244,8 @@ inline void PushLine(game_render_commands* Commands, vec2 From, vec2 To, vec4 Co
     }
 }
 
-inline void PushText(game_render_commands* Commands, vec2 Pos, const char* Text, vec4 Color, uint32 FontSize = 24)
+inline void 
+PushText(game_render_commands* Commands, vec2 Pos, const char* Text, vec4 Color, uint32 FontSize = 24)
 {
     render_command_text* Cmd = (render_command_text*)PushRenderCommand_(Commands, sizeof(render_command_text), RenderCommand_Text);
     
