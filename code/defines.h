@@ -50,6 +50,11 @@ typedef double real64;
 #define local_persist static
 #define global static
 
+#define Kilobytes(Value) (Value * 1024LL)
+#define Megabytes(Value) (Kilobytes(Value) * 1024LL)
+#define Gigabytes(Value) (Megabytes(Value) * 1024LL)
+#define Terabytes(Value) (Gigabytes(Value) * 1024LL)
+
 #define Assert(Expression) if(!(Expression)) { *(int*)0 = 0; }
 
 #define ARRAY_COUNT(arr) (sizeof(arr) / sizeof((arr)[0]))
@@ -74,6 +79,8 @@ __LogMessage(FILE* Stream, const char* File, int Line, const char* Prefix, const
     va_end(Args);
     
     fputs(Buffer, Stream);
+    fputc('\n', Stream);
+    fflush(Stream);
 }
 
 #define LOG_ERROR(MSG, ...) \

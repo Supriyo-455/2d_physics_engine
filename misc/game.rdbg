@@ -1,96 +1,83 @@
 // raddbg 0.9.29 user file
 
+recent_project:
+{
+  path: "../project.rdbg"
+  name: "2D Physics Engine"
+}
 recent_project: path: "../../../../AppData/Roaming/raddbg/default.raddbg_project"
 window:
 {
   size: 1536.000000 825.599976
+  pos: 216 127
+  monitor: "\\\\.\\DISPLAY1"
+  split_x
   panels:
   {
-    0.462121:
-    {
-      0.947862:
-      {
-        watch:
-        {
-          expression: ""
-          watch: World
-          watch: "World.Bodies[1]"
-        }
-        watch:
-        {
-          expression: "query:types"
-          query:
-          {
-            cmd: search
-            input: phys
-          }
-        }
-        watch: selected expression: "query:locals"
-        watch: expression: "query:call_stack"
-        text:
-        {
-          expression: "query:output"
-          query: input: ""
-          cursor_line: 1
-          cursor_column: 1
-          mark_line: 1
-          mark_column: 1
-        }
-      }
-      0.052138:
-      {
-        watch: expression: "query:threads"
-        watch: expression: "query:targets"
-        watch: expression: "query:breakpoints"
-        watch: expression: "query:watch_pins"
-        watch: expression: "query:modules"
-        disasm:
-        {
-          selected
-          expression: ""
-          query: input: ""
-        }
-      }
-    }
-    0.537879:
+    0.5:
     {
       selected
       text:
       {
         selected
-        expression: "file:\"D:/projects/physics_engine/code/physics2D.h\".data"
+        expression: "file:\"C:/Users/pauls/Documents/dev/2d_physics_engine/code/game.cpp\".data"
         auto: 1
         query:
         {
           input: ""
           cmd: search
         }
-        cursor_line: 498
+        cursor_line: 1
         cursor_column: 1
-        mark_line: 498
+        mark_line: 1
+        mark_column: 1
+        cursor: 0x30f8
+        mark: 0x30f8
+        project: ""
+      }
+      watch: expression: "query:breakpoints"
+      watch: expression: "query:modules"
+      watch: expression: "query:watch_pins"
+      disasm:
+      {
+        expression: ""
+        query: input: ""
+      }
+    }
+    0.5:
+    {
+      watch: selected expression: "query:threads"
+      watch:
+      {
+        expression: ""
+        watch: World
+        watch: "World.Bodies[1]"
+      }
+      watch: expression: "query:targets"
+      watch:
+      {
+        expression: "query:types"
+        query:
+        {
+          cmd: search
+          input: phys
+        }
+      }
+      watch: expression: "query:locals"
+      watch: expression: "query:call_stack"
+      text:
+      {
+        expression: "query:output"
+        query: input: ""
+        cursor_line: 1
+        cursor_column: 1
+        mark_line: 1
         mark_column: 1
         cursor: 0x0
         mark: 0x0
       }
-      text:
-      {
-        expression: "file:\"D:/projects/physics_engine/code/game.cpp\".data"
-        project: "C:\\Users\\pauls\\AppData\\Roaming/raddbg/default.raddbg_project"
-        query:
-        {
-          input: ""
-          cmd: search
-        }
-        cursor_line: 580
-        cursor_column: 1
-        mark_line: 580
-        mark_column: 1
-      }
     }
   }
-  split_x
-  pos: 216 127
-  monitor: "\\\\.\\DISPLAY1"
   maximized
 }
 keybindings:
@@ -212,5 +199,11 @@ keybindings:
   { log_marker m ctrl shift alt }
   { toggle_dev_menu d ctrl shift alt }
 }
-current_path: "C:/Users/pauls/Documents/dev/2d_physics_engine/code"
+current_path: "C:/Users/pauls/Documents/dev/2d_physics_engine"
 file_path_map
+debug_info:
+{
+  path: "C:/Users/pauls/Documents/dev/2d_physics_engine/build/GAME_30970.pdb"
+  timestamp: 66230488720728
+  project: "C:/Users/pauls/Documents/dev/2d_physics_engine/project.rdbg"
+}

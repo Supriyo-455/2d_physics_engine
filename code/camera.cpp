@@ -1,5 +1,5 @@
 
-bool32 
+inline bool32 
 IsVisible(real32 ObjectX, real32 ObjectY,
           real32 ObjectWidth, real32 ObjectHeight,
           simple_camera* Camera) {
@@ -22,7 +22,16 @@ IsVisible(real32 ObjectX, real32 ObjectY,
             ObjectTop < ViewPortBottom);
 }
 
-vec2
+inline vec2 
+WorldToScreen(simple_camera* Cam, vec2 P) 
+{
+    real32 X = (P.x - Cam->Position.x) * Cam->Zoom + (Cam->Width * 0.5f);
+    real32 Y = (P.y - Cam->Position.y) * Cam->Zoom + (Cam->Height * 0.5f);
+    
+    return vec(X, Y);
+}
+
+inline vec2
 GetRelativeWorldPosition(simple_camera* Camera, real32 NewX, real32 NewY)
 {
 	real32 OffsetX = NewX - (Camera->Width / 2.0f);
@@ -34,7 +43,7 @@ GetRelativeWorldPosition(simple_camera* Camera, real32 NewX, real32 NewY)
 	return vec(NewWorldX, NewWorldY);
 }
 
-void 
+inline void 
 PanCamera(simple_camera* Camera, real32 NewX, real32 NewY)
 {
 	real32 NewCameraPositionX = Camera->Position.x - (NewX / Camera->Zoom);
@@ -43,7 +52,7 @@ PanCamera(simple_camera* Camera, real32 NewX, real32 NewY)
     Camera->Position = vec(NewCameraPositionX, NewCameraPositionY);
 }
 
-void 
+inline void 
 ZoomCamera(simple_camera* Camera, real32 ZoomXPos, real32 ZoomYPos, int32 ZoomWeight)
 {
     real32 OffsetX = ZoomXPos - (Camera->Width / 2.0f);
@@ -67,33 +76,33 @@ ZoomCamera(simple_camera* Camera, real32 ZoomXPos, real32 ZoomYPos, int32 ZoomWe
 
 // TODO: Pass only camera and bodies array? Or maybe entities 
 void
-DeleteOutofReachPhysicsBodies(game* Game)
+DeleteOutofReachPhysicsBodies(game_state* GameState)
 {
 	// NOTE: Delete physics objects if they leave the zoom level 0.030 bounds
-	real32 MaxViewWidth = Game->Camera.Width / Game->Camera.MinZoom;
-	real32 MaxViewHeight = Game->Camera.Height / Game->Camera.MinZoom;
-	real32 BoundLeft = Game->Camera.Position.x - (MaxViewWidth / 2.0f);
-	real32 BoundRight = Game->Camera.Position.x + (MaxViewWidth / 2.0f);
-	real32 BoundTop = Game->Camera.Position.y - (MaxViewHeight / 2.0f);
-	real32 BoundBottom = Game->Camera.Position.y + (MaxViewHeight / 2.0f);
+	real32 MaxViewWidth = GameState->Camera.Width / GameState->Camera.MinZoom;
+	real32 MaxViewHeight = GameState->Camera.Height / GameState->Camera.MinZoom;
+	real32 BoundLeft = GameState->Camera.Position.x - (MaxViewWidth / 2.0f);
+	real32 BoundRight = GameState->Camera.Position.x + (MaxViewWidth / 2.0f);
+	real32 BoundTop = GameState->Camera.Position.y - (MaxViewHeight / 2.0f);
+	real32 BoundBottom = GameState->Camera.Position.y + (MaxViewHeight / 2.0f);
 	
 	for(uint32 i = 0; 
-		i < Game->World->BodyCount;)
+		i < GameState->World->BodyCount;)
 	{
-		if(!Game->World->Bodies[i].IsStatic)
+		if(!GameState->World->Bodies[i].IsStatic)
 		{
-			AABB aabb = GetAABBFromPhysicsBody(&Game->World->Bodies[i]);
+			AABB aabb = GetAABBFromPhysicsBody(&GameState->World->Bodies[i]);
 			if(aabb.Max.x < BoundLeft || aabb.Min.x > BoundRight || aabb.Max.y < BoundTop || aabb.Min.y > BoundBottom)
 			{
 				// TODO: Replace normal array with linkedlist for deletion
-				for(uint32 j = i; j < Game->World->BodyCount - 1; j++)
+				for(uint32 j = i; j < GameState->World->BodyCount - 1; j++)
 				{
-					Game->World->Bodies[j] = Game->World->Bodies[j+1];
-					Game->BodyColors[j] = Game->BodyColors[j+1];
+					GameState->World->Bodies[j] = GameState->World->Bodies[j+1];
+					GameState->BodyColors[j] = GameState->BodyColors[j+1];
 				}
 				
-				Game->World->BodyCount -= 1;
-				Game->BodyColorsCount -= 1;
+				GameState->World->BodyCount -= 1;
+				GameState->BodyColorsCount -= 1;
 				
 				continue;
 			}

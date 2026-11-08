@@ -1,3 +1,3 @@
 @echo off
 cd /d %~dp0..
-raddbg --user:.\misc\game.rdbg .\build\Game.exe
+raddbg --user:.\misc\game.rdbg --project:.\project.rdbg .\build\Game.exe

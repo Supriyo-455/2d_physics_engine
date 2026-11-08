@@ -18,11 +18,6 @@ struct temp_memory_arena
 	uint64 CurrOffset;
 };
 
-#define Kilobytes(Value) (Value * 1024LL)
-#define Megabytes(Value) (Kilobytes(Value) * 1024LL)
-#define Gigabytes(Value) (Megabytes(Value) * 1024LL)
-#define Terabytes(Value) (Gigabytes(Value) * 1024LL)
-
 #define DEFAULT_ALIGNMENT (2*sizeof(void *))
 
 #define PushStruct(Arena, type) (type*)MemoryArenaAllocate((Arena), sizeof(type))

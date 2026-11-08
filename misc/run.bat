@@ -1,4 +1,4 @@
 @echo off
-
-set EXE_NAME="Game"
-.\build\%EXE_NAME%
+pushd %~dp0..\build
+Game.exe
+popd

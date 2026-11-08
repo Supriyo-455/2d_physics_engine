@@ -1,0 +1,12 @@
+// raddbg 0.9.29 project file
+
+name: "2D Physics Engine"
+target:
+{
+  executable: "build/Game.exe"
+  working_directory: build
+  enabled: 1
+  stdout_path: "C:/Users/pauls/Documents/dev/2d_physics_engine/build/"
+  stderr_path: "C:/Users/pauls/Documents/dev/2d_physics_engine/build/"
+  stdin_path: "C:/Users/pauls/Documents/dev/2d_physics_engine/build/"
+}

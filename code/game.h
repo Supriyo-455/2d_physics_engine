@@ -1,59 +1,62 @@
 #ifndef GAME_H
 #define GAME_H
 
-#include "defines.h"
-#include "simple_math.h"
+#include "game_platform.h"
 #include "memory.h"
 #include "transform_2d.h"
 #include "physics_body_2d.h"
 #include "collision_2d.h"
 #include "physics_2d.h"
-#include "renderer.h"
 #include "camera.h"
-#include "input.h"
 
-struct game
-{
-    memory_arena* MemoryArena;
-	uint64 MemoryArenaSize;
-	
-	SDL_Window* Window;
-    SDL_Renderer* Renderer;
-    TTF_Font* Font;
-    SDL_Event Event;
-	SDL_GLContext GLContext;
-	
-    simple_camera Camera;
-    
-    real32 dx;
-    real32 dy;
-    real32 Speed;
-    real32 RotationalVelocity;
-    real32 ForceMagnitude;
-    
-	physics_world2D* World;
-	
-	vec4* BodyColors;
-	uint32 BodyColorsCount;
-	
-	bool32 HighlightCollisions;
-	
-    bool32 Running;
-	
-	bool32 WireframeMode;
+global vec4 WHITE = {
+	.r=1.0f,
+	.g=1.0f,
+	.b=1.0f,
+	.a=1.0f
 };
 
-// NOTE: Unity Build dont re-arrange these files
-#include "memory.cpp"
-#include "transform_2d.cpp"
-#include "physics_body_2d.cpp"
-#include "collision_2d.cpp"
-#include "renderer.cpp"
-#include "camera.cpp"
-#include "input.cpp"
-#include "timer.cpp"
+global vec4 GRAY = {
+	.r=0.5f,
+	.g=0.5f,
+	.b=0.5f,
+	.a=1.0f
+};
 
-// NOTE: Third party dependency
-#include "glad.c"
+global vec4 BLACK = {
+	.r=0.0f,
+	.g=0.0f,
+	.b=0.0f,
+	.a=1.0f
+};
+
+global vec4 RED = {
+	.r=1.0f,
+	.g=0.0f,
+	.b=0.0f,
+	.a=1.0f
+};
+
+global vec4 YELLOW = {
+	.r=1.0f,
+	.g=1.0f,
+	.b=0.0f,
+	.a=1.0f
+};
+
+struct game_state
+{
+    memory_arena WorldArena;
+    
+    physics_world2D* World;
+    simple_camera Camera;
+    
+    // TODO: Why using body colors struct separatly? Can we create entities instead?
+    vec4* BodyColors;
+    uint32 BodyColorsCount;
+    
+    bool32 HighlightCollisions;
+    bool32 WireframeMode;
+};
 
 #endif //GAME_H

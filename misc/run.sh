@@ -2,5 +2,5 @@
 set -e
 
 EXE_NAME="Game"
-
-"build/$EXE_NAME"
+cd "$(dirname "$0")/../build"
+"./$EXE_NAME"

@@ -2,72 +2,84 @@
 set -e
 
 EXE_NAME="Game"
+DLL_NAME="game.so"
 CODE_PATH="$PWD/code/"
 LIBS_PATH="$PWD/third_party/"
 ASSETS_PATH="$PWD/assets/"
 
-# Extract project name from 4coder config, fallback to a default if missing
 PROJECT_NAME=$(awk -F'"' '/project_name/ {print $2}' project.4coder 2>/dev/null)
 PROJECT_NAME="${PROJECT_NAME:-2d_phyics}"
 
 # COMPILER FLAGS
 CXXFLAGS=(
-    "-std=c++20"                      # Target the C++20 standard
-    "-O0"                             # Disable optimization for faster builds and better debugging
-    "-fno-diagnostics-show-caret"     # Force single-line errors so 4coder can parse them natively
-    "-fno-rtti"                       # Disable Run-Time Type Info (reduces overhead if not using dynamic_cast)
-    "-fno-exceptions"                 # Disable C++ exceptions to enforce explicit error handling
-	"-fno-show-column"                # Strips column output for strict 4coder parsing
-    "-Wall"                           # Enable standard compiler warnings
-    "-Wextra"                         # Enable extended compiler warnings
-    "-Werror"                         # Treat warnings as errors to enforce clean code
-    "-mrdseed"                        # Enable x86 RDSEED hardware instructions for random number generation
-    "-Wno-unused-parameter"           # Suppress warnings for unused function arguments
-    "-Wno-unused-variable"            # Suppress warnings for unused local variables
-    "-Wno-unused-function"            # Suppress warnings for unused internal functions
-    "-Wno-missing-field-initializers" # Suppress warnings for partial struct initialization
-    "-Wno-sign-compare"               # Suppress warnings when comparing signed and unsigned integers
-    "-I${LIBS_PATH}include"           # Add third-party include directory to search path
-    "-g3"                             # Generate maximum debug information for GDB
-    "-DENGINE_DEBUG=1"                # Define the ENGINE_DEBUG preprocessor macro
-	"-DGPU_RENDERED=1"                # Define the flag for Hardware accelerated rendering
-	"-DSHOW_CONTACT_POINTS=0"		 # Flag for showing contact points of collisions
+    "-std=c++20"
+    "-O0"
+    "-fno-diagnostics-show-caret"
+    "-fno-rtti"
+    "-fno-exceptions"
+    "-fno-show-column"
+    "-Wall"
+    "-Wextra"
+    "-Werror"
+    "-mrdseed"
+    "-Wno-unused-parameter"
+    "-Wno-unused-variable"
+    "-Wno-unused-function"
+    "-Wno-missing-field-initializers"
+    "-Wno-sign-compare"
+    "-I${LIBS_PATH}include"
+    "-I${CODE_PATH}"
+    "-g3"
+    "-DENGINE_DEBUG=1"
 )
 
-# LINKER FLAGS
+# LINKER FLAGS FOR HOST
 LDFLAGS=(
-    "-Wl,--gc-sections"               # Instruct linker to strip out unused code and data sections
-    "-L${LIBS_PATH}lib"               # Add third-party library directory to search path
-    "-lpthread"                       # Link POSIX threading library
-    "-ldl"                            # Link dynamic loader (required for dlopen/dlsym)
-    "-lGL"                            # Link OpenGL library
-    "-lSDL2"                          # Link core SDL2 library
-    "-lSDL2_ttf"                      # Link SDL2 TrueType font extension
-    "-lSDL2_image"                    # Link SDL2 image loading extension
+    "-Wl,--gc-sections"
+    "-L${LIBS_PATH}lib"
+    "-lpthread"
+    "-ldl"
+    "-lGL"
+    "-lSDL2"
+    "-lSDL2_ttf"
+    "-lSDL2_image"
 )
 
 mkdir -p build/assets
-
-# Copy files directly into build/ without changing the working directory
 cp -u "${LIBS_PATH}lib"/*.so build/ 2>/dev/null || true
 cp -ru "${ASSETS_PATH}"* build/assets/ 2>/dev/null || true
-rm -f build/*.o
 
-# Building the executable
-g++ "${CXXFLAGS[@]}" "${CODE_PATH}game.cpp" "${LDFLAGS[@]}" -o "build/$EXE_NAME"
+# =============================================================================
+# 1. BUILD GAME SHARED LIBRARY (Live-Reloadable)
+# =============================================================================
+# Set lock file during compilation
+touch build/lock.tmp
+echo "[BUILD] Compiling ${DLL_NAME}..."
 
+g++ "${CXXFLAGS[@]}" -fPIC -shared "${CODE_PATH}game.cpp" -o "build/${DLL_NAME}"
 
-# GENERATE QT CREATOR PROJECT FILES
+rm -f build/lock.tmp
+
+# =============================================================================
+# 2. BUILD HOST RUNNER (Game)
+# =============================================================================
+if [ "$1" != "game" ]; then
+    echo "[BUILD] Compiling ${EXE_NAME}..."
+    g++ "${CXXFLAGS[@]}" "${CODE_PATH}sdl_main.cpp" "${LDFLAGS[@]}" -o "build/${EXE_NAME}"
+fi
+
+# =============================================================================
+# 3. GENERATE QT CREATOR PROJECT FILES
+# =============================================================================
 touch "${PROJECT_NAME}.creator"
-
 find "$CODE_PATH" -type f \( -name "*.cpp" -o -name "*.h" -o -name "*.hpp" \) > "${PROJECT_NAME}.files"
-
 echo "${CODE_PATH}" > "${PROJECT_NAME}.includes"
 echo "${LIBS_PATH}include" >> "${PROJECT_NAME}.includes"
-
 printf "%s\n" "${CXXFLAGS[@]}" > "${PROJECT_NAME}.cxxflags"
 
 mkdir -p .qtcreator
 if [ ! -f ".qtcreator/${PROJECT_NAME}.creator.user" ] && [ -f "debug_template.user.backup" ]; then
     cp debug_template.user.backup ".qtcreator/${PROJECT_NAME}.creator.user"
 fi
+
+echo "[BUILD] Complete."
