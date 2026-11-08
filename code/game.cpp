@@ -6,6 +6,27 @@
 #include "collision_2d.cpp"
 #include "camera.cpp"
 
+vec4
+GenerateDarkRandomColor()
+{
+	real32 R = 0.5f * RandomUnilateral();
+	real32 G = 0.5f * RandomUnilateral();
+	real32 B = 0.5f * RandomUnilateral();
+	
+	return vec(R, G, B, 1.0f);
+}
+
+void 
+GenerateDarkRandomColors(vec4* ColorArray, int ArrayCount)
+{
+    for(int i=0; 
+        i < ArrayCount; 
+        i++)
+    {
+        ColorArray[i] = GenerateDarkRandomColor();
+    }
+}
+
 void
 UpdatePhysicsWorld2d(physics_world2D* World, real32 ElapsedTime, int Iterations)
 {
@@ -13,7 +34,7 @@ UpdatePhysicsWorld2d(physics_world2D* World, real32 ElapsedTime, int Iterations)
 	
 	real32 SubStepTime = ElapsedTime / Iterations;
 	
-	for(int it = 0; 
+	for(int it = 0;
 		it < Iterations; 
 		it++)
 	{
@@ -71,7 +92,7 @@ InitGameState(game_memory* Memory, game_state* GameState)
         GameState->Camera.Position = vec(650.0f, 400.0f);
         GameState->Camera.MaxZoom = 10.0f;
         GameState->Camera.MinZoom = 1.0f;
-        GameState->HighlightCollisions = true;
+        GameState->HighlightCollisions = false;
         GameState->WireframeMode = false;
         
         GameState->BodyColors = PushArray(&GameState->WorldArena, MAX_BODIES, vec4);
@@ -101,7 +122,7 @@ InitGameState(game_memory* Memory, game_state* GameState)
                                                                true);
         BottomPlatform.Angle = PI;
         GameState->World->Bodies[GameState->World->BodyCount++] = BottomPlatform;
-        GameState->BodyColors[GameState->BodyColorsCount++] = vec(0.2f, 0.7f, 0.3f, 1.0f);
+        GameState->BodyColors[GameState->BodyColorsCount++] = GenerateDarkRandomColor();
         
         physics_body2D LeftPaddle = CreateBoxPhysicsBody2D(GameState->World,
                                                            vec(ScreenWidth / 2.5f, ScreenHeight / 2.0f),
@@ -112,7 +133,7 @@ InitGameState(game_memory* Memory, game_state* GameState)
                                                            true);
         LeftPaddle.Angle = PI / 4.0f;
         GameState->World->Bodies[GameState->World->BodyCount++] = LeftPaddle;
-        GameState->BodyColors[GameState->BodyColorsCount++] = vec(0.7f, 0.5f, 0.2f, 1.0f);
+        GameState->BodyColors[GameState->BodyColorsCount++] = GenerateDarkRandomColor();
         
         physics_body2D RightPaddle = CreateBoxPhysicsBody2D(GameState->World,
                                                             vec(ScreenWidth / 1.5f, ScreenHeight / 2.0f),
@@ -123,20 +144,20 @@ InitGameState(game_memory* Memory, game_state* GameState)
                                                             true);
         RightPaddle.Angle = -PI / 4.0f;
         GameState->World->Bodies[GameState->World->BodyCount++] = RightPaddle;
-        GameState->BodyColors[GameState->BodyColorsCount++] = vec(0.7f, 0.5f, 0.2f, 1.0f);
+        GameState->BodyColors[GameState->BodyColorsCount++] = GenerateDarkRandomColor();
         
         // Spawn a couple of demo falling bodies
         physics_body2D DemoCircle = CreateCirclePhysicsBody2D(GameState->World, 
                                                               vec(ScreenWidth / 2.0f - 60.0f, 150.0f), 
                                                               16.0f, 0.6f, 0.85f, false);
         GameState->World->Bodies[GameState->World->BodyCount++] = DemoCircle;
-        GameState->BodyColors[GameState->BodyColorsCount++] = vec(0.85f, 0.25f, 0.25f, 1.0f);
+        GameState->BodyColors[GameState->BodyColorsCount++] = GenerateDarkRandomColor();
         
         physics_body2D DemoBox = CreateBoxPhysicsBody2D(GameState->World, 
                                                         vec(ScreenWidth / 2.0f + 60.0f, 120.0f), 
                                                         32.0f, 32.0f, 0.6f, 0.60f, false);
         GameState->World->Bodies[GameState->World->BodyCount++] = DemoBox;
-        GameState->BodyColors[GameState->BodyColorsCount++] = vec(0.25f, 0.55f, 0.85f, 1.0f);
+        GameState->BodyColors[GameState->BodyColorsCount++] = GenerateDarkRandomColor();
         
         Memory->IsInitialized = true;
     }
@@ -149,32 +170,39 @@ HandleInput(game_input* Input, game_state* GameState)
     {
         PanCamera(&GameState->Camera, Input->MouseRel.x, Input->MouseRel.y);
     }
+    
     if(Input->MouseWheelDelta != 0)
     {
         ZoomCamera(&GameState->Camera, Input->MousePos.x, Input->MousePos.y, Input->MouseWheelDelta);
     }
+    
     vec2 MouseWorldPos = GetRelativeWorldPosition(&GameState->Camera, Input->MousePos.x, Input->MousePos.y);
+    
     if(WasPressed(Input->SpawnCircle) || WasPressed(Input->MouseButtons[0]))
     {
         physics_body2D Body = CreateCirclePhysicsBody2D(GameState->World, MouseWorldPos, 14.0f, 0.6f, 0.85f, false);
         GameState->World->Bodies[GameState->World->BodyCount++] = Body;
-        GameState->BodyColors[GameState->BodyColorsCount++] = vec(0.85f, 0.3f, 0.3f, 1.0f);
+        GameState->BodyColors[GameState->BodyColorsCount++] = GenerateDarkRandomColor();
     }
+    
     if(WasPressed(Input->SpawnBox))
     {
         physics_body2D Body = CreateBoxPhysicsBody2D(GameState->World, MouseWorldPos, 28.0f, 28.0f, 0.6f, 0.60f, false);
         GameState->World->Bodies[GameState->World->BodyCount++] = Body;
-        GameState->BodyColors[GameState->BodyColorsCount++] = vec(0.3f, 0.6f, 0.85f, 1.0f);
+        GameState->BodyColors[GameState->BodyColorsCount++] = GenerateDarkRandomColor();
     }
+    
     if(WasPressed(Input->Reset))
     {
         GameState->World->BodyCount = 3;
         GameState->BodyColorsCount = 3;
     }
+    
     if(WasPressed(Input->ToggleWireframe))
     {
         GameState->WireframeMode = !GameState->WireframeMode;
     }
+    
     if(WasPressed(Input->HighlightCollisions))
     {
         GameState->HighlightCollisions = !GameState->HighlightCollisions;
@@ -199,9 +227,11 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     UpdatePhysicsWorld2d(GameState->World, Input->dtForFrame, 128);
     DeleteOutofReachPhysicsBodies(GameState);
     
-    PushClear(RenderCommands, vec(0.08f, 0.08f, 0.10f, 1.0f));
+    PushClear(RenderCommands, vec(0.00f, 0.00f, 0.00f, 1.0f));
     
-    for(uint32 i = 0; i < GameState->World->BodyCount; i++)
+    for(uint32 i = 0; 
+        i < GameState->World->BodyCount; 
+        i++)
     {
         physics_body2D* Body = &GameState->World->Bodies[i];
         

@@ -37,10 +37,13 @@ set common_link=-opt:ref -incremental:no -DEBUG:FULL
 if not exist .\build mkdir .\build
 pushd .\build
 
+del *.pdb > NUL 2> NUL
+
 :: Copy dependencies and assets
 if exist %third_party_path%dll (
     xcopy "%third_party_path%dll\*.dll" "." /q /v /y > NUL 2> NUL
 )
+
 if exist "%source_assets%" (
     xcopy "%source_assets%" ".\assets\" /e /s /y > NUL 2> NUL
 )
@@ -52,7 +55,9 @@ if exist "%source_assets%" (
 echo WAITING FOR PDB > lock.tmp
 
 set DLL_PDB_NAME=game_%RANDOM%.pdb
+
 echo [BUILD] Compiling %DLL_NAME%.dll...
+
 cl %common_compiler% %defines% %code_path%game.cpp ^
    -LD /link %common_link% /PDB:%DLL_PDB_NAME% /EXPORT:GameUpdateAndRender ^
    /OUT:%DLL_NAME%.dll
@@ -67,7 +72,9 @@ del lock.tmp > NUL 2> NUL
 if "%1"=="game" goto finish
 
 set EXE_PDB_NAME=GAME_%RANDOM%.pdb
+
 echo [BUILD] Compiling %EXE_NAME%.exe...
+
 cl %common_compiler% %defines% %code_path%sdl_main.cpp ^
    %sdl_libs% %win32_libs% ^
    /link %common_link% -subsystem:console /LIBPATH:%third_party_path%lib ^

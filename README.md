@@ -1,6 +1,6 @@
 # 2D Physics Engine
 
-A lightweight, high-performance 2D physics engine built from scratch in C++20, SDL2, and modern OpenGL. Designed with a data-oriented, single-compilation-unit (*Handmade Hero* style unity build) philosophy, the engine emphasizes custom mathematics, linear memory arena allocation, continuous rigid body dynamics, and zero external runtime bloat.
+A lightweight, high-performance 2D physics engine and live-coding environment built from scratch in C++20 and SDL2. Designed with a decoupled, data-oriented architecture inspired by *Handmade Hero*, the project features instant DLL hot-reloading, dual-tier linear memory management (Permanent and Transient storage), a decoupled render command buffer, custom SIMD-ready mathematics, continuous rigid body dynamics with SAT collision resolution, and zero runtime dynamic allocations.
 
 <p align="center">
   <img src="assets/demo.png" alt="2D Physics Engine Demo" width="850"/>
@@ -10,360 +10,420 @@ A lightweight, high-performance 2D physics engine built from scratch in C++20, S
 
 ## Table of Contents
 
-- [Architectural Overview](#architectural-overview)
-- [Core Engine Subsystems](#core-engine-subsystems)
-  - [Memory Management (Arenas)](#memory-management-arenas)
+- [Architectural Design & Philosophy](#architectural-design--philosophy)
+  - [Decoupled Platform / Logic Boundary](#decoupled-platform--logic-boundary)
+  - [Architecture Flow Diagram](#architecture-flow-diagram)
+  - [Zero-Dependency Game Core](#zero-dependency-game-core)
+- [Memory Management Architecture](#memory-management-architecture)
+  - [Permanent Storage (256 MB)](#permanent-storage-256-mb)
+  - [Transient Storage (64 MB)](#transient-storage-64-mb)
+  - [Linear Bump Allocation (`memory_arena`)](#linear-bump-allocation-memory_arena)
+  - [Visual Memory Map](#visual-memory-map)
+- [Live Code Hot-Reloading Pipeline](#live-code-hot-reloading-pipeline)
+  - [Hot-Reload Cycle](#hot-reload-cycle)
+  - [DLL Shadow Copying (`game_temp.dll`)](#dll-shadow-copying-game_tempdll)
+  - [Lock File Synchronization (`lock.tmp`)](#lock-file-synchronization-locktmp)
+- [Render Command Buffer Pipeline](#render-command-buffer-pipeline)
+  - [Decoupled Command Queue](#decoupled-command-queue)
+  - [Command Types & Protocol](#command-types--protocol)
+  - [Platform Execution Backend](#platform-execution-backend)
+- [Core Physics & Simulation Subsystems](#core-physics--simulation-subsystems)
   - [Math & Linear Algebra](#math--linear-algebra)
   - [2D Rigid Body Physics](#2d-rigid-body-physics)
   - [Collision Pipeline (Broadphase & SAT Narrowphase)](#collision-pipeline-broadphase--sat-narrowphase)
-  - [Camera & Viewport](#camera--viewport)
-  - [Rendering Pipeline (OpenGL & SDL2)](#rendering-pipeline-opengl--sdl2)
-  - [Input & Controls](#input--controls)
-  - [Timing & Performance Profiling](#timing--performance-profiling)
-- [Unit Testing Framework](#unit-testing-framework)
+  - [Impulse Resolution & Friction](#impulse-resolution--friction)
+  - [Camera & Coordinate Projection](#camera--viewport)
+- [Interactive Controls & Keybindings](#interactive-controls--keybindings)
+- [Automated Testing Framework](#automated-testing-framework)
   - [Test Architecture](#test-architecture)
   - [Detailed Test Modules](#detailed-test-modules)
   - [Test Execution & Summary Output](#test-execution--summary-output)
-- [Build Pipeline & Debugger Generation](#build-pipeline--debugger-generation)
-  - [Windows Build Pipeline (MSVC & RAD Debugger)](#windows-build-pipeline-msvc--rad-debugger)
-  - [Linux Build Pipeline & Automatic Debugger File Generation](#linux-build-pipeline--automatic-debugger-file-generation)
+- [Build Pipeline & Tooling Integration](#build-pipeline--tooling-integration)
+  - [Windows Build Pipeline (MSVC & 4coder)](#windows-build-pipeline-msvc--4coder)
+  - [Linux Build Pipeline & Qt Creator Integration](#linux-build-pipeline--qt-creator-integration)
+  - [RAD Debugger Integration](#rad-debugger-integration)
   - [Step-by-Step Build Instructions](#step-by-step-build-instructions)
-- [Interactive Controls](#interactive-controls)
-- [Development Tools](#development-tools)
 
 ---
 
-## Architectural Overview
+## Architectural Design & Philosophy
 
-The engine is engineered around performance, simplicity, and mechanical transparency:
+The engine is engineered around three core principles: **absolute mechanical transparency**, **zero frame-time allocations**, and **instantaneous developer iteration**.
 
-- **Unity Compilation (Single Translation Unit)**: The entire engine compiles through `game.cpp` as a single compilation unit, eliminating link-time overhead and enabling aggressive compiler inlining and optimizations.
-- **Strict Compilation Standards**: Compiles cleanly with `-W4 -WX` on MSVC and `-Wall -Wextra -Werror` on GCC/Clang with C++20 standards.
-- **Custom Memory Arenas**: Avoids dynamic runtime allocations (`malloc`, `free`, `new`, `delete`) inside simulation loops; all physics entities, contact pairs, manifolds, and temporary buffers reside in pre-allocated linear memory arenas.
+```
++-----------------------------------------------------------------------------------+
+|                                 PLATFORM HOST                                     |
+|                       (code/sdl_main.cpp -> Game.exe)                             |
+|  - Windowing & Event Pump (SDL2)        - Static Memory Allocation (320 MB)       |
+|  - Clock & High-Res Timer               - DLL Hot-Reload Manager                  |
+|  - Render Command Execution Backend     - Base Path Resolution (SDL_GetBasePath)  |
++-----------------------------------------------------------------------------------+
+                                         |
+                       Platform Contract (code/game_platform.h)
+                     [ game_memory | game_input | game_render_commands ]
+                                         |
+                                         v
++-----------------------------------------------------------------------------------+
+|                                 GAME SIMULATION                                   |
+|                         (code/game.cpp -> game.dll)                               |
+|  - 2D Rigid Body Dynamics               - Linear Memory Arenas                    |
+|  - SAT Collision Detection & Manifolds  - Camera Transformation                   |
+|  - Continuous Impulse Resolution        - Render Command Queue Generation         |
++-----------------------------------------------------------------------------------+
+```
+
+### Decoupled Platform / Logic Boundary
+Rather than compiling the platform layer, renderer, and game logic into a monolithic executable, the project splits strictly into two distinct modules communicating through a pure C ABI ([`code/game_platform.h`](code/game_platform.h)):
+
+1. **Platform Host Executable (`Game.exe` / `Game`)**:
+   - Implemented in [`code/sdl_main.cpp`](code/sdl_main.cpp).
+   - Responsible for operating system interactions: window creation, input event polling, audio, high-precision timing, DLL loading/unloading, and graphics presentation.
+   - Owns the continuous 320 MB memory block in RAM for the entire duration of the process.
+
+2. **Game Simulation Shared Library (`game.dll` / `game.so`)**:
+   - Implemented in [`code/game.cpp`](code/game.cpp).
+   - Contains pure simulation logic: physics world stepping, rigid body integration, collision resolution, camera tracking, and scene updating.
+   - Exposes a single public entry point:
+     ```cpp
+     GAME_UPDATE_AND_RENDER(GameUpdateAndRender);
+     ```
+
+### Architecture Flow Diagram
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Host as Platform Host (Game.exe)
+    participant Memory as Pre-allocated RAM (320 MB)
+    participant DLL as Game Logic (game.dll)
+    participant GPU as Platform Backend (SDL2 / GL)
+
+    Note over Host: Startup & Memory Reservation
+    Host->>Memory: calloc(1, 320 MB) [256 MB Perm + 64 MB Trans]
+    Host->>Host: Load game.dll as game_temp.dll
+
+    loop Every Frame (60+ FPS)
+        Host->>Host: Poll SDL Events -> Fill game_input
+        Host->>Memory: Rewind Transient Storage (RenderCommands offset = 0)
+        Host->>DLL: GameUpdateAndRender(&Memory, &Input, &RenderCommands)
+        Note over DLL: Step physics, integrate forces, SAT collision, generate render queue
+        DLL->>Memory: Write render commands into TransientStorage buffer
+        DLL-->>Host: Return
+        Host->>GPU: ExecuteRenderCommands(&RenderCommands)
+        Host->>GPU: SDL_RenderPresent()
+        
+        opt DLL Modified on Disk
+            Host->>Host: Check write time & lock.tmp
+            Host->>Host: Unload old DLL -> Copy game.dll to game_temp.dll -> Load new DLL
+            Note over Host,DLL: Hot reload completed! PermanentStorage intact!
+        end
+    end
+```
+
+### Zero-Dependency Game Core
+The game library (`game.dll`) does not link against SDL2, Win32, or OpenGL. It compiles as a standalone compilation unit with zero platform headers. All system services (inputs, frame deltas, render buffers, and RAM) are passed in explicitly as pointers by the platform host.
 
 ---
 
-## Core Engine Subsystems
+## Memory Management Architecture
 
-### Memory Management (Arenas)
-*Files: `code/memory.h`, `code/memory.cpp`*
+The engine rejects runtime `malloc`, `free`, `new`, and `delete` in the simulation loop. Instead, the platform host pre-allocates a single contiguous memory block at initialization and slices it into two fixed regions ([`code/sdl_main.cpp`](code/sdl_main.cpp)):
 
-- **Linear Memory Arena (`memory_arena`)**: Pre-allocated contiguous byte buffer that satisfies allocations via monotonic bump-pointer offsets aligned to cache-friendly boundaries (`DEFAULT_ALIGNMENT`).
-- **Scoped Temporary Arenas (`temp_memory_arena`)**: Allows temporary allocations (e.g. scratch calculations or per-frame queries) via `TempMemoryArenaBegin` and `TempMemoryArenaEnd`, completely eliminating memory fragmentation and leak potential.
-- **Helper Allocation Macros**: `PushStruct`, `PushArray`, `PushSize`, `ZeroStruct`, `ZeroArray`.
+```cpp
+uint64 PermanentStorageSize = Megabytes(256);
+uint64 TransientStorageSize = Megabytes(64);
+uint64 TotalSize = PermanentStorageSize + TransientStorageSize; // 320 MB
+
+void* MemoryBlock = calloc(1, TotalSize);
+
+game_memory Memory = {};
+Memory.PermanentStorageSize = PermanentStorageSize;
+Memory.PermanentStorage     = MemoryBlock;
+Memory.TransientStorageSize = TransientStorageSize;
+Memory.TransientStorage     = (uint8*)MemoryBlock + PermanentStorageSize;
+Memory.IsInitialized        = false;
+```
+
+### Permanent Storage (256 MB)
+- **Lifetime**: Entire duration of the application process. Persists across DLL live reloads.
+- **Contents**:
+  - `game_state` structure sitting at byte 0.
+  - Linear `memory_arena` (`WorldArena`) managing rigid bodies (`MAX_BODIES = 4096`), contact pairs (`MAX_CONTACT_PAIRS = 100000`), collision manifolds, and entity color buffers.
+- **Initialization Guard**: Initialized only once when `Memory->IsInitialized == false`. When a new DLL is loaded, `Memory->IsInitialized` remains `true`, allowing the new code to seamlessly continue simulating existing entity states without resetting.
+
+### Transient Storage (64 MB)
+- **Lifetime**: Exactly one frame.
+- **Contents**: Scratchpad memory, per-frame mathematical caches, and the primary **Render Command Buffer** (`game_render_commands`).
+- **Reset Frequency**: At the start of every frame, the buffer offset is reset to `0`. Allocations within the frame are effectively free (costing only a pointer addition), and deallocation is a single assignment (`CurrentBufferSize = 0`).
+
+### Linear Bump Allocation (`memory_arena`)
+*Files: [`code/memory.h`](code/memory.h), [`code/memory.cpp`](code/memory.cpp)*
+
+All persistent structures are allocated through bump allocators:
+- `PushStruct(Arena, type)`: Allocates and zeros a single structure aligned to 16-byte boundaries (`DEFAULT_ALIGNMENT`).
+- `PushArray(Arena, Count, type)`: Allocates contiguous arrays.
+- `TempMemoryArenaBegin` / `TempMemoryArenaEnd`: Scoped sub-arenas that restore previous allocation watermarks for local scratch tasks.
+
+### Visual Memory Map
+
+```
+Total Allocation: 320 MB (One Contiguous calloc in Game.exe Address Space)
++-------------------------------------------------------------------+-----------------------------------+
+|                    Permanent Storage (256 MB)                     |      Transient Storage (64 MB)    |
++-------------------+-----------------------------------------------+-----------------------------------+
+| struct game_state | WorldArena:                                   | Render Command Buffer (4 MB)      |
+| - Camera state    | - Bodies (4,096 * sizeof(physics_body2D))     | - Clear commands                  |
+| - BodyColors ptr  | - ContactPairs (100,000 * contact_pair)       | - Quad vertex buffers             |
+| - World pointer   | - CollisionManifolds (100,000 * manifold)     | - Circle packets                  |
+| - Settings/flags  | - ContactPoints (100,000 * vec2)              | - Text draw requests              |
+|                   | - Static platform definitions                 | Scratch space (60 MB)             |
++-------------------+-----------------------------------------------+-----------------------------------+
+^                                                                   ^
+Memory.PermanentStorage                                             Memory.TransientStorage
+```
+
+---
+
+## Live Code Hot-Reloading Pipeline
+
+The architecture supports modifying gameplay and physics code in `code/game.cpp`, recompiling, and seeing the changes take effect in the running application **within milliseconds without restarting the window or losing entity state**.
+
+```mermaid
+flowchart TD
+    A["Developer edits code/game.cpp"] --> B["Run misc/build.bat game"]
+    B --> C["1. Create lock.tmp"]
+    C --> D["2. cl.exe compiles game.dll with unique PDB"]
+    D --> E["3. Delete lock.tmp"]
+    
+    subgraph Host ["Game.exe Main Loop"]
+        F["Check GetFileLastWriteTime(game.dll)"] --> G{"Write time changed?"}
+        G -- Yes --> H{"Does lock.tmp exist?"}
+        H -- Yes --> I["Wait (compiler is still linking)"]
+        H -- No --> J["Unload current DLL (SDL_UnloadObject)"]
+        J --> K["Copy game.dll -> game_temp.dll"]
+        K --> L["Load game_temp.dll (SDL_LoadObject)"]
+        L --> M["Resolve GameUpdateAndRender function pointer"]
+        M --> N["Resume simulation with intact PermanentStorage"]
+        G -- No --> O["Continue normal frame execution"]
+    end
+
+    E -. Signals completion .-> H
+```
+
+### Hot-Reload Cycle
+1. **Timestamp Polling**: The host calls `GetFileLastWriteTime(SourceDLLPath)` every frame.
+2. **Lock File Protection**: Before invoking the compiler, `misc\build.bat` writes `lock.tmp`. The host checks for the presence of `lock.tmp` before attempting to reload, preventing it from reading partially written DLLs.
+3. **PDB Randomization**: Windows debuggers lock `.pdb` files during active execution. To prevent MSVC linker collisions (`LNK1104`), `build.bat` generates randomized PDB names per compilation:
+   ```cmd
+   set DLL_PDB_NAME=game_%RANDOM%.pdb
+   cl ... /PDB:%DLL_PDB_NAME% /EXPORT:GameUpdateAndRender /OUT:game.dll
+   ```
+
+### DLL Shadow Copying (`game_temp.dll`)
+Because Windows places a file-execution lock on any loaded DLL, `Game.exe` never loads `game.dll` directly. Instead:
+1. `Game.exe` copies `game.dll` to `game_temp.dll`.
+2. It loads `game_temp.dll` via `SDL_LoadObject`.
+3. When the developer recompiles, MSVC can freely overwrite `game.dll` on disk without locking errors.
+
+---
+
+## Render Command Buffer Pipeline
+
+Rendering is decoupled from game simulation using the **Render Command Buffer** pattern ([`code/game_platform.h`](code/game_platform.h)):
+
+```
+[ game.dll ]
+     |
+     | PushClear(), PushQuad(), PushCircle(), PushText()
+     v
+[ game_render_commands Buffer in Transient Storage ]
+     |
+     | Passed back across the module boundary
+     v
+[ Game.exe: ExecuteRenderCommands() ]
+     |
+     | SDL_RenderGeometry(), SDL_RenderDrawLineF(), TTF_RenderText_Blended()
+     v
+[ Screen Presentation ]
+```
+
+### Decoupled Command Queue
+`game.dll` has no knowledge of SDL, OpenGL, or Direct3D. It simply appends structured command headers into `RenderCommands.BufferBase`:
+
+```cpp
+struct game_render_commands
+{
+    uint32 Width;
+    uint32 Height;
+    uint32 MaxBufferSize;
+    uint32 CurrentBufferSize;
+    uint8* BufferBase;
+    uint32 CommandCount;
+};
+```
+
+### Command Types & Protocol
+Every command starts with a `render_command_header` describing its payload:
+
+| Command Type | Data Structure | Purpose |
+| :--- | :--- | :--- |
+| `RenderCommand_Clear` | `render_command_clear` | Clears viewport to normalized RGBA color |
+| `RenderCommand_Quad` | `render_command_quad` | 4 world/screen vertices with fill color, outline color, and border flag |
+| `RenderCommand_Circle` | `render_command_circle` | Center point, radius, orientation line, fill, and outline |
+| `RenderCommand_Line` | `render_command_line` | Start and end points with color |
+| `RenderCommand_Text` | `render_command_text` | Screen position, string buffer, font size, and color |
+
+### Platform Execution Backend
+In [`code/sdl_main.cpp`](code/sdl_main.cpp), `ExecuteRenderCommands()` iterates through `Commands->BufferBase` from offset `0` to `CurrentBufferSize`:
+- **Quads**: Emitted via `SDL_RenderGeometry` with an indexed triangle list `{0, 1, 3, 1, 2, 3}`, followed by `SDL_RenderDrawLineF` for perimeter outlines.
+- **Circles**: Rendered using Bresenham midpoint rasterization algorithms for filled bodies and orientation indicators.
+- **Text**: Rendered using SDL_ttf (`TTF_RenderText_Blended`) into textures cached and presented per frame.
+
+---
+
+## Core Physics & Simulation Subsystems
 
 ### Math & Linear Algebra
-*Files: `code/simple_math.h`, `code/transform_2d.h`, `code/transform_2d.cpp`*
+*Files: [`code/simple_math.h`](code/simple_math.h), [`code/transform_2d.h`](code/transform_2d.h), [`code/transform_2d.cpp`](code/transform_2d.cpp)*
 
-- **Scalars**: Custom `Abs`, `RoundReal32ToUint32`, `Floor`, `Equals` (epsilon tolerance $10^{-4}$), `Clamp` (integer and float), and photometric `LinearTosRGB` gamma curve.
-- **Trigonometry**: Standard radian-based `Sin` and `Cos` routines, with optional Taylor series polynomial expansion under `OWN_MATH`.
-- **Vectors (`vec2`, `vec3`, `vec4`)**:
-  - Memory-efficient anonymous unions with `.xyzw`, `.rgba`, and array `.E[]` access.
-  - Complete operator overloads (`+`, `-`, `*`, `/`, `*=`, unary `-`).
-  - Vector products: 2D dot product (`Dot`), 2D perp-dot cross product (`Cross`), 3D dot (`Inner`), 3D cross (`Cross`), and component-wise Hadamard product (`Hadamard`).
-  - Metrics: Euclidean magnitude (`Magnitude`, `Length`), squared length (`LengthSq`, `DistanceSquared`), `Normalize`, safe zero-vector normalization (`NormalizeOrZero`), and linear interpolation (`Lerp`).
-- **Matrices (`mat4x4`)**:
-  - Row-major affine transformation matrices.
-  - `Identity`, `ScalingMat4x4`, `transMat4x4` (column translation).
-  - Matrix addition (`+`), scalar multiplication (`*`), matrix-vector multiplication (`M * v`), and matrix-matrix multiplication (`A * B`).
-  - Involution transpose (`transpose`), 3D rotations (`rotateZ`, `rotateX`), and perspective projection (`projection`).
-- **2D Transforms (`transform2D`)**:
-  - Structure caching position $(p_x, p_y)$ alongside pre-evaluated $\cos\theta$ and $\sin\theta$.
-  - Affine rotation and translation: $x' = x\cos\theta - y\sin\theta + p_x$, $y' = x\sin\theta + y\cos\theta + p_y$.
-- **Color Packing**:
-  - `RGBAPack4x8`: Packs floating-point RGBA components into 32-bit unsigned integers `(A<<24 | B<<16 | G<<8 | R)`.
-  - `BGRAPack4x8`: Endianness/format-specific packing for swapchains.
-  - `RGBAUnpack4x8`: Unpacks 32-bit packed integers into component floats.
-- **Random Number Generation**:
-  - Hardware-seeded entropy using x86 `_rdseed32_step`.
-  - `RandomUnilateral`: Uniform distribution in $[0.0, 1.0]$.
-  - `RandomBilateral`: Uniform distribution in $[-1.0, 1.0]$.
+- **Vectors (`vec2`, `vec3`, `vec4`)**: Anonymous union components supporting `.xyzw`, `.rgba`, and array indexing `.E[]`. Complete arithmetic operator overloads, dot product (`Dot`), perp-dot product (`Cross`), and safe normalization (`NormalizeOrZero`).
+- **2D Affine Transforms (`transform2D`)**: Caches coordinate positions alongside precomputed $\cos\theta$ and $\sin\theta$ for fast trigonometric rotation and translation without redundant transcendental calls.
+- **Matrix 4x4 (`mat4x4`)**: Full row-major affine transformations, translations, rotations, perspective projections, and matrix-vector multiplication.
+- **Entropy**: Hardware-seeded random number generation using CPU intrinsic `_rdseed32_step` (`RandomUnilateral`, `RandomBilateral`).
 
 ### 2D Rigid Body Physics
-*Files: `code/physics_body_2d.h`, `code/physics_body_2d.cpp`, `code/physics_2d.h`*
+*Files: [`code/physics_body_2d.h`](code/physics_body_2d.h), [`code/physics_body_2d.cpp`](code/physics_body_2d.cpp), [`code/physics_2d.h`](code/physics_2d.h)*
 
-- **Shapes Supported**: Circles (`CIRCLE`) and Oriented OBB / Boxes (`BOX`).
-- **Physical Properties**:
-  - Position, linear velocity, force accumulator.
-  - Orientation angle (radians), angular velocity, torque/inertia accumulator.
-  - Mass, inverse mass ($1/M$), moment of inertia ($I$), inverse inertia ($1/I$).
-  - Restitution (coefficient of restitution $e \in [0, 1]$), static friction ($\mu_s$), and dynamic friction ($\mu_k$).
-- **Physical Safety Bounds**:
-  - Body area bounded between $0.0001\text{ m}^2$ and $1000000\text{ m}^2$.
-  - Density bounded between $0.5\text{ g/cm}^3$ and $21.4\text{ g/cm}^3$ (wood to platinum).
-  - Gravity defaults to Earth's $9.81\text{ m/s}^2$.
+- **Supported Primitives**: Circles (`CIRCLE`) and Oriented Bounding Boxes (`BOX`).
+- **State Representation**: Position, linear velocity, angular orientation (radians), angular velocity, forces, and torque accumulators.
+- **Mass & Inertia**: Automatically derives mass, moment of inertia ($I$), inverse mass ($1/M$), and inverse inertia ($1/I$) from shape dimensions and density.
+- **Material Tuning**: Configurable restitution (elasticity $e \in [0, 1]$), static friction ($\mu_s$), dynamic friction ($\mu_k$), and static immovable body flags (`IsStatic`).
 
 ### Collision Pipeline (Broadphase & SAT Narrowphase)
-*Files: `code/collision_2d.h`, `code/collision_2d.cpp`*
+*Files: [`code/collision_2d.h`](code/collision_2d.h), [`code/collision_2d.cpp`](code/collision_2d.cpp)*
 
-1. **Broadphase**: Fast Axis-Aligned Bounding Box (AABB) intersection check (`IntersectAABBs`) filters out non-colliding entity pairs into a `contact_pair` array.
-2. **Narrowphase (SAT)**:
-   - **Circle vs. Circle**: Distance checks between centroids with penetration depth and contact normal generation.
-   - **Box vs. Box**: **Separating Axis Theorem (SAT)** tests 4 potential separating axes (face normals of both oriented bounding boxes) to find minimum penetration depth.
-   - **Circle vs. Box**: Identifies closest point on oriented box edges to the circle center.
-3. **Contact Manifold Generation**: Computes contact points (up to 2 contact points for box-box face contacts) and contact normals.
-4. **Impulse Resolution with Rotation & Friction**:
-   - Resolves normal impulse $j$ taking into account linear inertia and angular moment of inertia:
-     $$j = \frac{-(1 + e)(v_{\text{rel}} \cdot n)}{M_A^{-1} + M_B^{-1} + \frac{(r_A \times n)^2}{I_A} + \frac{(r_B \times n)^2}{I_B}}$$
-   - Resolves Coulomb friction impulses (clamping friction impulses to $\le j \cdot \mu_s$).
+1. **Broadphase**: Fast Axis-Aligned Bounding Box (AABB) overlap testing (`IntersectAABBs`) filters out disjoint entities into candidate `contact_pair` records.
+2. **Narrowphase (Separating Axis Theorem)**:
+   - **Circle vs. Circle**: Centroid distance tests with penetration depth calculation.
+   - **Box vs. Box**: Evaluates 4 candidate normal axes (the face normals of both oriented boxes) using SAT projection intervals to determine minimum penetration depth and collision normals.
+   - **Circle vs. Box**: Clamps circle centroid to oriented box bounds to locate the nearest feature point.
+3. **Contact Manifold Generation**: Computes contact points (up to 2 points for box edge contacts) and normal vectors.
+
+### Impulse Resolution & Friction
+Collisions are resolved through sequential impulse formulation:
+- **Normal Impulse**: Calculates restitution impulse $j$ taking into account linear inertia and moment of inertia:
+  $$j = \frac{-(1 + e)(v_{\text{rel}} \cdot n)}{M_A^{-1} + M_B^{-1} + \frac{(r_A \times n)^2}{I_A} + \frac{(r_B \times n)^2}{I_B}}$$
+- **Friction Impulse**: Tangential Coulomb friction impulses computed and clamped to the friction cone ($\le j \cdot \mu_s$).
+- **Sub-stepping**: Integrator runs multiple substeps per frame (default: 128 iterations) for high-speed collision stability and stacking behavior.
 
 ### Camera & Viewport
-*Files: `code/camera.h`, `code/camera.cpp`*
+*Files: [`code/camera.h`](code/camera.h), [`code/camera.cpp`](code/camera.cpp)*
 
-- Pan and zoom support with configurable `MinZoom` and `MaxZoom`.
-- Screen-to-world and world-to-screen coordinate transformations (`GetRelativeWorldPosition`).
-- Frustum visibility culling (`IsVisible`).
-- Automatic out-of-bounds entity cleanup (`DeleteOutofReachPhysicsBodies`).
-
-### Rendering Pipeline (OpenGL & SDL2)
-*Files: `code/renderer.h`, `code/renderer.cpp`, `code/glad.c`, `assets/shaders/*`*
-
-- Modern hardware-accelerated OpenGL rendering through GLAD loader.
-- Custom vertex and fragment shaders (`vertex.glsl`, `fragment.glsl`) with texture mapping.
-- Wireframe debugging mode (`glPolygonMode(GL_FRONT_AND_BACK, GL_LINE)`).
-- CPU debug drawing fallback routines using SDL2 geometry.
-
-### Input & Controls
-*Files: `code/input.h`, `code/input.cpp`*
-
-- SDL event pump processing keyboard and mouse state.
-- Smooth camera panning with right-click mouse drag and zoom with the scroll wheel.
-- Dynamic runtime spawning of circles and boxes at the mouse pointer.
-
-### Timing & Performance Profiling
-*Files: `code/timer.h`, `code/timer.cpp`, `code/performance.h`*
-
-- Delta-time calculation, frame timing, and rolling FPS counter (`GetFPS`).
-- Hardware cycle profiling macros (`BEGIN_TIMED_BLOCK`, `END_TIMED_BLOCK`, `TIMED_BLOCK`) using CPU `__rdtsc()` instructions.
+- World-to-screen (`WorldToScreen`) and screen-to-world (`GetRelativeWorldPosition`) projection matrices.
+- Smooth panning with right-click drag and exponential zoom centered on mouse coordinates.
+- Frustum visibility culling (`IsVisible`) and automatic out-of-bounds entity cleanup (`DeleteOutofReachPhysicsBodies`).
 
 ---
 
-## Unit Testing Framework
-
-The engine includes a dedicated automated test suite located in `code/all_tests.cpp` and `code/simple_math_tests.cpp`.
-
-### Test Architecture
-
-- **Assertion Macros**:
-  - `ASSERT_CONDITION(condition, message)`: Evaluates boolean expressions.
-  - `ASSERT_NEAR(a, b, message)`: Compares floating-point values against standard epsilon ($\epsilon = 0.001f$).
-  - `ASSERT_NEAR_EPS(a, b, eps, message)`: Compares floating-point values against custom tolerance thresholds.
-- **Macro Hygiene & Safety**: Internal assertion variables use unique prefixes (`_macro_diff_`) to prevent variable shadowing collisions.
-- **Granular Test Tracking**: The test runner tracks executed, passed, and failed assertions for each test module, as well as overall pass statistics.
-
-### Detailed Test Modules
-
-| Module | What It Tests | Key Scenarios & Edge Cases |
-| :--- | :--- | :--- |
-| **Scalars** (`test_scalars`) | Fundamental arithmetic, rounding, clamping, sRGB | `Abs`/`absf` with signed zero and extreme numbers; `RoundReal32ToUint32` boundary half-up rounding; `Floor` with negative floats ($-0.1 \to -1$, $-1.5 \to -2$); `Equals` floating-point threshold comparisons; `Clamp` with equal bounds, negative ranges, and invalid bound safety; `LinearTosRGB` piece-wise linear and exponential gamma branches. |
-| **Trigonometry** (`test_trigonometry`) | Radian trigonometric functions | Cardinal angles ($0, \pi/6, \pi/4, \pi/3, \pi/2, \pi, 3\pi/2, 2\pi$); odd/even negative angle symmetries ($-\pi/2, -\pi$); periodic wrap-around ($2\pi + \pi/2, 4\pi$); Pythagorean identity ($\sin^2\theta + \cos^2\theta = 1$) across arbitrary angles. |
-| **Vectors** (`test_vectors`) | 2D, 3D, and 4D vector algebra | Union component/array aliasing; vector addition, subtraction, unary negation; scalar multiplication and division (`v / s` and `s / v`); dot products (orthogonal, parallel, anti-parallel); 2D and 3D cross products (handedness, anti-commutativity, orthogonality); magnitudes and Euclidean distances; safe normalization (`NormalizeOrZero` on zero vectors); Hadamard product; linear interpolation (`Lerp`). |
-| **Matrices** (`test_matrices`) | 4x4 matrix operations & affine transforms | `Identity` diagonal/off-diagonal verification; diagonal scaling (`ScalingMat4x4`); translation columns (`transMat4x4`); matrix addition and scalar multiplication; matrix-vector multiplication with homogeneous coordinates ($w=1$ for positions, $w=0$ for direction vectors); matrix-matrix multiplication composition $(T \cdot S) \cdot v == T \cdot (S \cdot v)$; matrix transpose involution $(M^T)^T == M$; 3D rotations (`rotateZ`, `rotateX`); perspective projection parameters. |
-| **Colors** (`test_colors`) | 32-bit color packing & unpacking | `.rgba` and `.xyzw` union aliasing; `RGBAPack4x8` and `RGBAUnpack4x8` round-trip fidelity for primary colors, black, white, and fractional rounding; `BGRAPack4x8` byte-order verification. |
-| **Transforms** (`test_transforms`) | 2D rigid-body transformations | `CreateTransform2D` trig caching; affine point transformation $x' = x\cos\theta - y\sin\theta + p_x$, $y' = x\sin\theta + y\cos\theta + p_y$; identity, pure translation, pure rotations ($90^\circ, 180^\circ, 270^\circ, 360^\circ$), and composite transformation. |
-| **Random** (`test_random`) | Hardware-seeded random generation | Hardware entropy initialization via `_rdseed32_step`; `RandomUnilateral` range verification $[0.0, 1.0]$ and spread checks; `RandomBilateral` range verification $[-1.0, 1.0]$ across both positive and negative domains. |
-
-### Test Execution & Summary Output
-
-Run the automated tests using `misc\test.bat` (Windows) or `misc/test.sh` (Linux). The suite prints real-time test progress followed by a structured summary:
-
-```
-================================================================================
-                               TEST RUN SUMMARY                                 
-================================================================================
- Suite / Module             Passed     Failed      Total       Pass %
---------------------------------------------------------------------------------
- Scalars                        71          0         71      100.00%
- Trig                           31          0         31      100.00%
- Vectors                       144          0        144      100.00%
- Matrices                      107          0        107      100.00%
- Colors                         23          0         23      100.00%
- Transforms                     24          0         24      100.00%
- Random                        204          0        204      100.00%
---------------------------------------------------------------------------------
- Tests Pass Percentage:                                                 100.00%
- Total Tests:               604 Passed, 0 Failed, 604 Total
- Suites Pass Percentage:                                                100.00%
- Total Suites:              7 Passed, 0 Failed, 7 Total
-================================================================================
- RESULT: ALL TESTS PASSED
-================================================================================
-```
-
----
-
-## Build Pipeline & Debugger Generation
-
-The build systems on both Windows and Linux are tailored to support rapid iteration, zero external build-tool dependencies (no CMake required), and automated debugger project generation.
-
-### Windows Build Pipeline (MSVC & RAD Debugger)
-
-On Windows, the build is driven by `misc\build.bat` using the MSVC C++ compiler (`cl.exe`):
-
-1. **Compilation Flags**:
-   - Target: `-std:c++20 -Od -Gm- -GR- -EHa- -W4 -WX` (C++20, debug optimization off, minimal rebuild off, RTTI off, C++ exceptions off, warnings-as-errors).
-   - Suppressed benign warnings: `-wd4201` (nameless unions), `-wd4100` (unused parameters), `-wd4189` (unused variables), `-wd4505` (unreferenced local functions), `-wd4456` (variable shadowing), `-wd4127` (constant conditionals), `-wd4996` (CRT deprecations).
-   - Absolute diagnostics paths: `-FC` emits full file paths so editors (such as 4coder) can jump directly to error lines.
-2. **Asset & Dependency Staging**:
-   - `third_party\dll\*.dll` is automatically copied into the `build/` output directory.
-   - `assets\` directory is mirrored into `build\assets\`.
-3. **Hot-Reload / Concurrent PDB Generation**:
-   - Windows locks `.pdb` files when a debugger is actively attached. To allow compiling a new executable while an existing debug session is running, `build.bat` emits uniquely randomized PDB filenames:
-     ```cmd
-     set PDB_FILE_NAME=GAME_%RANDOM%.pdb
-     cl ... /link ... /PDB:%PDB_FILE_NAME% /OUT:Game.exe
-     ```
-4. **RAD Debugger Integration**:
-   - Launching `misc\debug.bat` starts the [RAD Debugger](https://github.com/EpicGamesExt/rad-debugger) (`raddbg`) configured with the project layout in `misc\game.rdbg`:
-     ```cmd
-     raddbg --user:.\misc\game.rdbg .\build\Game.exe
-     ```
-
----
-
-### Linux Build Pipeline & Automatic Debugger File Generation
-
-On Linux, `misc/build.sh` not only compiles the game using GCC (`g++`), but also **automatically generates full IDE and debugger project files** on every build so developers can step through code immediately without manual IDE configuration.
-
-#### 1. Compilation & Maximum Debug Symbols (`-g3`)
-```bash
-g++ "${CXXFLAGS[@]}" "${CODE_PATH}game.cpp" "${LDFLAGS[@]}" -o "build/$EXE_NAME"
-```
-- Compiles with `-g3`, which instructs GCC to emit **Level 3 DWARF debug symbols**. This includes macro definitions, inlined function frames, and type layouts for GDB.
-- Uses `-fno-diagnostics-show-caret` and `-fno-show-column` for seamless editor parsing in 4coder.
-- Links POSIX threads (`-lpthread`), dynamic loader (`-ldl`), OpenGL (`-lGL`), and SDL2 (`-lSDL2 -lSDL2_ttf -lSDL2_image`).
-
-#### 2. Automatic Generation of Qt Creator Project Files
-After building the executable, `misc/build.sh` programmatically constructs a complete Qt Creator project:
-
-```bash
-# Extract project name from 4coder config (fallback to 2d_phyics)
-PROJECT_NAME=$(awk -F'"' '/project_name/ {print $2}' project.4coder 2>/dev/null)
-PROJECT_NAME="${PROJECT_NAME:-2d_phyics}"
-
-# 1. Project Marker File
-touch "${PROJECT_NAME}.creator"
-
-# 2. Dynamic Source Indexing
-find "$CODE_PATH" -type f \( -name "*.cpp" -o -name "*.h" -o -name "*.hpp" \) > "${PROJECT_NAME}.files"
-
-# 3. Header Include Search Paths
-echo "${CODE_PATH}" > "${PROJECT_NAME}.includes"
-echo "${LIBS_PATH}include" >> "${PROJECT_NAME}.includes"
-
-# 4. Clang Code Model Compiler Flags
-printf "%s\n" "${CXXFLAGS[@]}" > "${PROJECT_NAME}.cxxflags"
-
-# 5. Bootstrapping User Debugger Settings
-mkdir -p .qtcreator
-if [ ! -f ".qtcreator/${PROJECT_NAME}.creator.user" ] && [ -f "debug_template.user.backup" ]; then
-    cp debug_template.user.backup ".qtcreator/${PROJECT_NAME}.creator.user"
-fi
-```
-
-- **`${PROJECT_NAME}.creator`**: The master project descriptor file recognized by Qt Creator.
-- **`${PROJECT_NAME}.files`**: Scans the `code/` directory on every build, automatically registering all `.cpp`, `.h`, and `.hpp` files in the project tree without manual CMake/Makefile edits.
-- **`${PROJECT_NAME}.includes`**: Supplies include paths (`code/` and `third_party/include`) so the IDE's semantic code engine offers instant autocomplete and symbol navigation.
-- **`${PROJECT_NAME}.cxxflags`**: Passes the exact compiler flags (`-std=c++20`, `-DENGINE_DEBUG=1`, etc.) to Qt Creator's Clang Code Model.
-- **`.qtcreator/${PROJECT_NAME}.creator.user`**: Automatically bootstrapped from `debug_template.user.backup` if missing. This file configures:
-  - Debugger executable target (`build/Game`).
-  - Working directory (`build/`).
-  - GDB debugger settings, launch environment variables, and pre-set breakpoints.
-
-#### 3. One-Click Linux Debugging (`misc/debug.sh`)
-Developers can launch the complete GUI debugging session simply by running:
-```bash
-./misc/debug.sh
-```
-This script opens Qt Creator (`qtcreator "${PROJECT_NAME}.creator" &`), which immediately loads the pre-configured project, hooks into GDB, and is ready to step through the simulation.
-
-#### 4. VS Code GDB Integration (`.vscode/launch.json`)
-For developers using Visual Studio Code on Linux, `.vscode/launch.json` is pre-configured for GDB:
-- **`Debug Game`**: Launches `${workspaceFolder}/build/Game` via `/usr/bin/gdb` with `-enable-pretty-printing` and working directory `${workspaceFolder}/build`.
-- **`Debug Tests`**: Launches `${workspaceFolder}/build/Tests` via `/usr/bin/gdb` to debug unit test failures.
-
----
-
-### Step-by-Step Build Instructions
-
-#### Prerequisites
-
-- **Windows**: Visual Studio 2022 / 2026 with C++ Desktop Development tools.
-- **Linux**: GCC 11+ or Clang 13+ with C++20 support and `-mrdseed`.
-- **Linux Libraries**:
-  - Ubuntu/Debian:
-    ```bash
-    sudo apt-get install libsdl2-dev libsdl2-ttf-dev libsdl2-image-dev libgl1-mesa-dev qtcreator gdb
-    ```
-  - Fedora/RHEL:
-    ```bash
-    sudo dnf install SDL2-devel SDL2_ttf-devel SDL2_image-devel mesa-libGL-devel qtcreator gdb
-    ```
-
-#### Windows (MSVC)
-
-1. Open the **x64 Native Tools Command Prompt for VS** (or run `misc\shell.bat`).
-2. **Build the game**:
-   ```cmd
-   misc\build.bat
-   ```
-3. **Run the game**:
-   ```cmd
-   .\build\Game.exe
-   ```
-4. **Launch the RAD Debugger**:
-   ```cmd
-   misc\debug.bat
-   ```
-5. **Run the unit tests**:
-   ```cmd
-   misc\test.bat
-   ```
-
-#### Linux (GCC / Clang)
-
-1. Open a terminal in the project root.
-2. Ensure shell scripts are executable:
-   ```bash
-   chmod +x misc/*.sh
-   ```
-3. **Build the game & generate debugger files**:
-   ```bash
-   ./misc/build.sh
-   ```
-4. **Run the game**:
-   ```bash
-   ./build/Game
-   ```
-5. **Launch Qt Creator with GDB debugger attached**:
-   ```bash
-   ./misc/debug.sh
-   ```
-6. **Run the unit tests**:
-   ```bash
-   ./misc/test.sh
-   ```
-
----
-
-## Interactive Controls
-
-When running `Game.exe` / `Game`, you can interact with the live simulation using the following controls:
+## Interactive Controls & Keybindings
 
 | Control | Action |
 | :--- | :--- |
-| **`C`** | Spawn a dynamic circle physics body at the mouse cursor position. |
-| **`B`** | Spawn a dynamic box physics body at the mouse cursor position. |
-| **`R`** | Reset scene (clears spawned bodies back to static platforms). |
-| **`Space`** | Toggle OpenGL wireframe mode (`GL_LINE` vs `GL_FILL`) and collision highlight. |
-| **`Right Mouse Button` + Drag** | Pan the camera viewport across the world. |
-| **`Mouse Wheel`** | Zoom the camera viewport in and out. |
+| **`Left Mouse Button`** or **`C`** | Spawn dynamic circle physics body at mouse position |
+| **`B`** | Spawn dynamic box physics body at mouse position |
+| **`R`** | Reset simulation (retains static ground and paddles, clears dynamic bodies) |
+| **`Space`** | Toggle collision contact highlighting (bodies flash red on impact) |
+| **`Right Mouse Button` + Drag** | Pan camera across the world |
+| **`Mouse Wheel`** | Zoom camera in and out |
+| **`Escape`** | Clean shutdown and exit |
 
 ---
 
-## Development Tools
+## Automated Testing Framework
 
-- **4coder Editor**: Configured via `project.4coder` for compilation and navigation keybindings (F1: Build, F2: Run, F3: Debug).
-- **RAD Debugger (Windows)**: Configured with `misc/game.rdbg` and launched via `misc/debug.bat`.
-- **Qt Creator & GDB (Linux)**: Automatically generated project files (`.creator`, `.files`, `.includes`, `.cxxflags`, `.creator.user`) and launched via `misc/debug.sh`.
-- **Visual Studio Code**: Pre-configured build and test tasks in `.vscode/tasks.json` and debug launch configurations in `.vscode/launch.json` for both `Game` and `Tests`.
+*Files: [`code/all_tests.cpp`](code/all_tests.cpp), [`code/simple_math_tests.cpp`](code/simple_math_tests.cpp)*
+
+The engine features an independent, self-contained automated test suite verifying floating-point edge cases, algebraic laws, and geometry:
+
+```cmd
+misc\test.bat    :: Windows MSVC
+./misc/test.sh   :: Linux GCC/Clang
+```
+
+### Detailed Test Modules
+
+| Module | What It Tests | Key Scenarios |
+| :--- | :--- | :--- |
+| **Scalars** | Arithmetic, rounding, clamping, sRGB | Negative zero, boundary round half-up, negative `Floor`, epsilon comparisons, piecewise `LinearTosRGB`. |
+| **Trigonometry** | Radian trig & series expansions | Cardinal angles ($0, \pi/4, \pi/2, \pi, 2\pi$), negative angle symmetries, Pythagorean identity ($\sin^2\theta + \cos^2\theta = 1$). |
+| **Vectors** | 2D, 3D, and 4D vector algebra | Union aliasing (`.xyzw`, `.rgba`, `.E[]`), dot/cross products, Euclidean distances, zero-vector normalization (`NormalizeOrZero`), `Lerp`. |
+| **Matrices** | 4x4 matrix transforms | Identity, diagonal scaling, column translation, matrix multiplication associativity $(A \cdot B) \cdot v == A \cdot (B \cdot v)$, transpose involution $(M^T)^T == M$. |
+| **Colors** | 32-bit color packing & unpacking | `RGBAPack4x8` and `RGBAUnpack4x8` round-trip fidelity, endian-specific `BGRAPack4x8`. |
+| **Transforms** | 2D affine transformation | `CreateTransform2D` trig caching, composite rotation and translation. |
+| **Random** | Hardware entropy generation | `_rdseed32_step` range integrity across $[0, 1]$ and $[-1, 1]$. |
+
+---
+
+## Build Pipeline & Tooling Integration
+
+### Windows Build Pipeline (MSVC & 4coder)
+
+The Windows build is managed via [`misc\build.bat`](misc/build.bat):
+
+1. **Compilation Flags**:
+   `-std:c++20 -nologo -Od -Gm- -GR- -EHa- -W4 -WX -Zi -FC`
+   - Strict warnings-as-errors (`-W4 -WX`).
+   - Exceptions and RTTI disabled (`-EHa- -GR-`) for minimal binary footprint.
+   - `-FC` emits full absolute paths for direct error jumping in 4coder.
+2. **Selective Targets**:
+   - **`misc\build.bat`**: Full build (compiles `game.dll` and `Game.exe`).
+   - **`misc\build.bat game`**: **Hot-reload compilation**. Compiles only `game.dll`, leaving the running `Game.exe` alone and allowing instant live reload.
+3. **4coder Integration**:
+   - Project configuration defined in [`project.4coder`](project.4coder).
+   - Press **`F1`** to compile, **`F5`** to run, and **`F2`** to debug.
+
+### Linux Build Pipeline & Qt Creator Integration
+
+Managed via [`misc/build.sh`](misc/build.sh):
+- Compiles with GCC/Clang (`-std=c++20 -Wall -Wextra -Werror -g3`).
+- **Automatic IDE Generation**: Programmatically generates a complete Qt Creator project (`.creator`, `.files`, `.includes`, `.cxxflags`, `.creator.user`) on every build. Run `./misc/debug.sh` to launch Qt Creator with GDB attached instantly.
+
+### RAD Debugger Integration
+
+- Configured with [`misc/game.rdbg`](misc/game.rdbg).
+- Run [`misc\debug.bat`](misc/debug.bat) to launch [RAD Debugger](https://github.com/EpicGamesExt/rad-debugger) (`raddbg`) attached to `.\build\Game.exe`.
+
+### Step-by-Step Build Instructions
+
+#### Windows (MSVC)
+1. Open an **x64 Native Tools Command Prompt for VS** (or run `misc\shell.bat`).
+2. Build the full engine:
+   ```cmd
+   misc\build.bat
+   ```
+3. Run the engine:
+   ```cmd
+   misc\run.bat
+   ```
+4. To test live code reloading while `Game.exe` is running:
+   - Edit [`code/game.cpp`](code/game.cpp).
+   - Run:
+     ```cmd
+     misc\build.bat game
+     ```
+   - Watch the live engine reload in place!
+
+#### Linux (GCC / Clang)
+1. Install dependencies:
+   ```bash
+   sudo apt-get install libsdl2-dev libsdl2-ttf-dev libsdl2-image-dev libgl1-mesa-dev
+   ```
+2. Build:
+   ```bash
+   chmod +x misc/*.sh
+   ./misc/build.sh
+   ```
+3. Run:
+   ```bash
+   ./misc/run.sh
+   ```

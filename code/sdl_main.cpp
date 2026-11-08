@@ -26,7 +26,8 @@ struct game_code
     bool32 IsValid;
 };
 
-time_t GetFileLastWriteTime(const char* Filename)
+time_t 
+GetFileLastWriteTime(const char* Filename)
 {
     struct stat Result;
     if(stat(Filename, &Result) == 0)
@@ -36,7 +37,8 @@ time_t GetFileLastWriteTime(const char* Filename)
     return 0;
 }
 
-bool32 CopyFile(const char* Source, const char* Dest)
+bool32 
+CopyFile(const char* Source, const char* Dest)
 {
     FILE* SrcFile = fopen(Source, "rb");
     if(!SrcFile)
@@ -65,7 +67,8 @@ bool32 CopyFile(const char* Source, const char* Dest)
     return true;
 }
 
-game_code LoadGameCode(const char* SourceDLL, const char* TempDLL)
+game_code 
+LoadGameCode(const char* SourceDLL, const char* TempDLL)
 {
     game_code Result = {};
     Result.LastWriteTime = GetFileLastWriteTime(SourceDLL);
@@ -100,7 +103,8 @@ game_code LoadGameCode(const char* SourceDLL, const char* TempDLL)
     return Result;
 }
 
-void UnloadGameCode(game_code* Code)
+void 
+UnloadGameCode(game_code* Code)
 {
     if(Code->Library)
     {
@@ -113,7 +117,8 @@ void UnloadGameCode(game_code* Code)
     LOG_INFO("Unloaded game code library");
 }
 
-inline SDL_Color ToSDLColor(vec4 C)
+inline SDL_Color 
+ToSDLColor(vec4 C)
 {
     SDL_Color Color;
     
@@ -125,26 +130,8 @@ inline SDL_Color ToSDLColor(vec4 C)
     return Color;
 }
 
-vec4
-GenerateDarkRandomColor()
-{
-	real32 R = 0.5f * RandomUnilateral();
-	real32 G = 0.5f * RandomUnilateral();
-	real32 B = 0.5f * RandomUnilateral();
-	
-	return vec(R, G, B, 1.0f);
-}
-
 void 
-GenerateDarkRandomColors(vec4* ColorArray, int ArrayCount)
-{
-    for(int i=0; i<ArrayCount; i++)
-    {
-        ColorArray[i] = GenerateDarkRandomColor();
-    }
-}
-
-void DrawFilledCircle(SDL_Renderer* Renderer, int32 CX, int32 CY, int32 Radius, vec4 Color)
+DrawFilledCircle(SDL_Renderer* Renderer, int32 CX, int32 CY, int32 Radius, vec4 Color)
 {
     SDL_Color C = ToSDLColor(Color);
     
@@ -176,7 +163,8 @@ void DrawFilledCircle(SDL_Renderer* Renderer, int32 CX, int32 CY, int32 Radius, 
     }
 }
 
-void DrawHollowCircle(SDL_Renderer* Renderer, int32 CX, int32 CY, int32 Radius, vec4 Color)
+void 
+DrawHollowCircle(SDL_Renderer* Renderer, int32 CX, int32 CY, int32 Radius, vec4 Color)
 {
     SDL_Color C = ToSDLColor(Color);
     
@@ -212,7 +200,8 @@ void DrawHollowCircle(SDL_Renderer* Renderer, int32 CX, int32 CY, int32 Radius, 
     }
 }
 
-void ExecuteRenderCommands(SDL_Renderer* Renderer, TTF_Font* Font, game_render_commands* Commands)
+void 
+ExecuteRenderCommands(SDL_Renderer* Renderer, TTF_Font* Font, game_render_commands* Commands)
 {
     uint32 Offset = 0;
     
@@ -295,7 +284,7 @@ void ExecuteRenderCommands(SDL_Renderer* Renderer, TTF_Font* Font, game_render_c
                 SDL_RenderDrawLineF(Renderer, Cmd->Position.x, Cmd->Position.y, TargetX, TargetY);
                 
                 Offset += sizeof(render_command_circle);
-            } 
+            }
             break;
             
             case RenderCommand_Line:
@@ -342,7 +331,8 @@ void ExecuteRenderCommands(SDL_Renderer* Renderer, TTF_Font* Font, game_render_c
     }
 }
 
-inline void ProcessButton(game_button_state* NewState, bool32 IsDown)
+inline void 
+ProcessButton(game_button_state* NewState, bool32 IsDown)
 {
     if(NewState->EndedDown != IsDown)
     {
@@ -351,7 +341,8 @@ inline void ProcessButton(game_button_state* NewState, bool32 IsDown)
     }
 }
 
-int main(int argc, char* argv[])
+int 
+main(int argc, char* argv[])
 {
     (void)argc;
     (void)argv;
@@ -386,7 +377,7 @@ int main(int argc, char* argv[])
         LOG_WARNING("SDL_ttf could not initialize! SDL_ttf Error: %s", TTF_GetError());
     }
     
-    SDL_Window* Window = SDL_CreateWindow("2D Physics Engine - Live Coding",
+    SDL_Window* Window = SDL_CreateWindow("2D Physics Engine",
                                           SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
                                           WINDOW_WIDTH, WINDOW_HEIGHT,
                                           SDL_WINDOW_SHOWN);
@@ -466,6 +457,7 @@ int main(int argc, char* argv[])
             NewInput->Buttons[i].EndedDown = OldInput->Buttons[i].EndedDown;
             NewInput->Buttons[i].HalfTransitionCount = 0;
         }
+        
         for(int i = 0; i < 3; ++i)
         {
             NewInput->MouseButtons[i].EndedDown = OldInput->MouseButtons[i].EndedDown;
@@ -523,14 +515,25 @@ int main(int argc, char* argv[])
                 {
                     bool32 IsDown = (Event.key.state == SDL_PRESSED);
                     SDL_Keycode Key = Event.key.keysym.sym;
-                    if(Key == SDLK_c)         ProcessButton(&NewInput->SpawnCircle, IsDown);
-                    if(Key == SDLK_b)         ProcessButton(&NewInput->SpawnBox, IsDown);
-                    if(Key == SDLK_r)         ProcessButton(&NewInput->Reset, IsDown);
-                    if(Key == SDLK_SPACE)     ProcessButton(&NewInput->ToggleWireframe, IsDown);
-                    if(Key == SDLK_LEFT)      ProcessButton(&NewInput->MoveLeft, IsDown);
-                    if(Key == SDLK_RIGHT)     ProcessButton(&NewInput->MoveRight, IsDown);
-                    if(Key == SDLK_UP)        ProcessButton(&NewInput->MoveUp, IsDown);
-                    if(Key == SDLK_DOWN)      ProcessButton(&NewInput->MoveDown, IsDown);
+                    
+                    if(Key == SDLK_c)         
+                        ProcessButton(&NewInput->SpawnCircle, IsDown);
+                    if(Key == SDLK_b)         
+                        ProcessButton(&NewInput->SpawnBox, IsDown);
+                    if(Key == SDLK_r)         
+                        ProcessButton(&NewInput->Reset, IsDown);
+                    if(Key == SDLK_SPACE)     
+                        ProcessButton(&NewInput->ToggleWireframe, IsDown);
+                    if(Key == SDLK_LEFT)      
+                        ProcessButton(&NewInput->MoveLeft, IsDown);
+                    if(Key == SDLK_RIGHT)     
+                        ProcessButton(&NewInput->MoveRight, IsDown);
+                    if(Key == SDLK_UP)        
+                        ProcessButton(&NewInput->MoveUp, IsDown);
+                    if(Key == SDLK_DOWN)      
+                        ProcessButton(&NewInput->MoveDown, IsDown);
+                    if(Key == SDLK_LALT)
+                        ProcessButton(&NewInput->HighlightCollisions, IsDown);
                     if(Key == SDLK_ESCAPE)
                     {
                         LOG_INFO("Escape pressed. Exiting...");
