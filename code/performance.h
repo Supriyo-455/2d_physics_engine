@@ -32,16 +32,18 @@ struct timed_block
     }
 };
 
-#define TIMED_BLOCK__(BlockName, Line) timed_block TimedBlock##Line(__COUNTER__, #BlockName, __FILE__, Line)
 
-#define TIMED_BLOCK_(BlockName, Line)  TIMED_BLOCK__(BlockName, Line)
-#define TIMED_BLOCK(BlockName)         TIMED_BLOCK_(BlockName, __LINE__)
-#define TIMED_FUNCTION()               TIMED_BLOCK(__FUNCTION__)
+#define TIMED_BLOCK__(BlockString, Line) timed_block TimedBlock##Line(__COUNTER__, BlockString, __FILE__, Line)
+#define TIMED_BLOCK_(BlockString, Line)  TIMED_BLOCK__(BlockString, Line)
+
+#define TIMED_BLOCK(BlockName) TIMED_BLOCK_(#BlockName, __LINE__)
+
+#define TIMED_FUNCTION TIMED_BLOCK_(__FUNCTION__, __LINE__)
 
 #else
 
 #define TIMED_BLOCK(BlockName)
-#define TIMED_FUNCTION()
+#define TIMED_FUNCTION
 
 #endif // ENGINE_DEBUG
 #endif // PERFORMANCE_H

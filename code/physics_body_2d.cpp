@@ -43,7 +43,9 @@ IsPhysicsBodyValid(physics_world2D* World, physics_body2D* Body)
 physics_body2D 
 CreateCirclePhysicsBody2D(physics_world2D* World, vec2 Position, real32 Radius, real32 Density, real32 Restitution = 0.0f, bool32 IsStatic = false)
 {   
-    physics_body2D Body = {};
+    TIMED_FUNCTION;
+	
+	physics_body2D Body = {};
     real32 Area = PI * Radius * Radius;
     real32 Mass = Density * Area;
     
@@ -82,7 +84,9 @@ CreateCirclePhysicsBody2D(physics_world2D* World, vec2 Position, real32 Radius, 
 physics_body2D 
 CreateBoxPhysicsBody2D(physics_world2D* World, vec2 Position, real32 Width, real32 Height, real32 Density, real32 Restitution = 0.0f, bool32 IsStatic = false)
 {   
-    physics_body2D Body = {};
+    TIMED_FUNCTION;
+	
+	physics_body2D Body = {};
     real32 Area = Width * Height;
     real32 Mass = Density * Area;
     
@@ -147,7 +151,9 @@ CreateBoxPhysicsBody2D(physics_world2D* World, vec2 Position, real32 Width, real
 
 vec2 FindPolygonCenter(vec2* Vertices, int VerticesCount)
 {
-    real32 SumX = 0.0f;
+    TIMED_FUNCTION;
+	
+	real32 SumX = 0.0f;
     real32 SumY = 0.0f;
     
     for(int i = 0; 
@@ -165,7 +171,9 @@ vec2 FindPolygonCenter(vec2* Vertices, int VerticesCount)
 vec2*
 GetPhysicsBodyTransformedVertices(physics_body2D* Body)
 {
-    if(Body->TransformUpdateRequired)
+    TIMED_FUNCTION;
+	
+	if(Body->TransformUpdateRequired)
     {
         transform2D SavedTransform = CreateTransform2D(Body->Position, Body->Angle);
         
@@ -184,6 +192,8 @@ GetPhysicsBodyTransformedVertices(physics_body2D* Body)
 inline AABB
 GetAABBFromPhysicsBody(physics_body2D* Body)
 {
+	TIMED_FUNCTION;
+	
 	if(Body->AabbUpdateRequired)
 	{
 		real32 MinX = FLT_MAX;
@@ -232,7 +242,9 @@ GetAABBFromPhysicsBody(physics_body2D* Body)
 void
 ProjectVertices(vec2* Vertices, int VerticesCount, vec2 Axis, real32* Min, real32* Max)
 {
-    *Min = FLT_MAX;
+    TIMED_FUNCTION;
+	
+	*Min = FLT_MAX;
     *Max = -FLT_MAX;
     
     for(int i = 0; 
@@ -252,7 +264,9 @@ ProjectVertices(vec2* Vertices, int VerticesCount, vec2 Axis, real32* Min, real3
 void
 ProjectCircle(vec2 Center, real32 Radius, vec2 Axis, real32* Min, real32* Max)
 {
-    vec2 Direction = Axis;
+    TIMED_FUNCTION;
+	
+	vec2 Direction = Axis;
     vec2 DirectionAndRadius = Direction * Radius;
     
     vec2 P1 = Center + DirectionAndRadius;
@@ -270,7 +284,9 @@ ProjectCircle(vec2 Center, real32 Radius, vec2 Axis, real32* Min, real32* Max)
 int
 FindClosestVertexOnPolygon(vec2 CircleCenter, vec2* PolygonVertices, int PolygonVerticesCount)
 {
-    int Result = -1;
+    TIMED_FUNCTION;
+	
+	int Result = -1;
     real32 MinDistance = FLT_MAX;
     
     for(int i = 0; 
@@ -293,7 +309,9 @@ FindClosestVertexOnPolygon(vec2 CircleCenter, vec2* PolygonVertices, int Polygon
 inline void
 MovePhysicsBody(physics_body2D* Body, real32 ElapsedTime)
 {
-    Body->Position = Body->Position + Body->LinearVelocity * ElapsedTime;
+    TIMED_FUNCTION;
+	
+	Body->Position = Body->Position + Body->LinearVelocity * ElapsedTime;
     Body->TransformUpdateRequired = true;
 	Body->AabbUpdateRequired = true;
 }
@@ -301,7 +319,9 @@ MovePhysicsBody(physics_body2D* Body, real32 ElapsedTime)
 inline void
 RotatePhysicsBody(physics_body2D* Body, real32 ElapsedTime)
 {
-    Body->Angle = Body->Angle + Body->AngularVelocity * ElapsedTime;
+    TIMED_FUNCTION;
+	
+	Body->Angle = Body->Angle + Body->AngularVelocity * ElapsedTime;
     Body->TransformUpdateRequired = true;
 	Body->AabbUpdateRequired = true;
 }
@@ -309,7 +329,9 @@ RotatePhysicsBody(physics_body2D* Body, real32 ElapsedTime)
 inline void
 ApplyForce(physics_body2D* Body, real32 ElapsedTime)
 {
-    if (Body->Mass > 0.0f)
+    TIMED_FUNCTION;
+	
+	if (Body->Mass > 0.0f)
     {
         vec2 Acceleration = Body->Force * Body->InvMass;
         Body->LinearVelocity = Body->LinearVelocity + Acceleration * ElapsedTime;
@@ -321,7 +343,9 @@ ApplyForce(physics_body2D* Body, real32 ElapsedTime)
 inline void
 ApplyGravity(physics_body2D* Body, vec2 Gravity, real32 ForceMultiplier, real32 ElapsedTime)
 {
-    if (Body->Mass > 0.0f)
+    TIMED_FUNCTION;
+	
+	if (Body->Mass > 0.0f)
     {
         vec2 Acceleration = Gravity * Body->InvMass * ForceMultiplier;
         Body->LinearVelocity = Body->LinearVelocity + Acceleration * ElapsedTime;

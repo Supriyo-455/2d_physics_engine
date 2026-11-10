@@ -4,6 +4,8 @@ IsVisible(real32 ObjectX, real32 ObjectY,
           real32 ObjectWidth, real32 ObjectHeight,
           simple_camera* Camera) {
     
+	TIMED_FUNCTION;
+	
     real32 ObjectLeft = ObjectX - (ObjectWidth / 2.0f); 
     real32 ObjectRight = ObjectLeft + ObjectWidth;
     real32 ObjectTop = ObjectY - (ObjectHeight / 2.0f);
@@ -25,7 +27,9 @@ IsVisible(real32 ObjectX, real32 ObjectY,
 inline vec2 
 WorldToScreen(simple_camera* Cam, vec2 P) 
 {
-    real32 X = (P.x - Cam->Position.x) * Cam->Zoom + (Cam->Width * 0.5f);
+    TIMED_FUNCTION;
+	
+	real32 X = (P.x - Cam->Position.x) * Cam->Zoom + (Cam->Width * 0.5f);
     real32 Y = (P.y - Cam->Position.y) * Cam->Zoom + (Cam->Height * 0.5f);
     
     return vec(X, Y);
@@ -34,6 +38,8 @@ WorldToScreen(simple_camera* Cam, vec2 P)
 inline vec2
 GetRelativeWorldPosition(simple_camera* Camera, real32 NewX, real32 NewY)
 {
+	TIMED_FUNCTION;
+	
 	real32 OffsetX = NewX - (Camera->Width / 2.0f);
 	real32 OffsetY = NewY - (Camera->Height / 2.0f);
 	
@@ -46,6 +52,8 @@ GetRelativeWorldPosition(simple_camera* Camera, real32 NewX, real32 NewY)
 inline void 
 PanCamera(simple_camera* Camera, real32 NewX, real32 NewY)
 {
+	TIMED_FUNCTION;
+	
 	real32 NewCameraPositionX = Camera->Position.x - (NewX / Camera->Zoom);
     real32 NewCameraPositionY = Camera->Position.y - (NewY / Camera->Zoom);
 	
@@ -55,7 +63,9 @@ PanCamera(simple_camera* Camera, real32 NewX, real32 NewY)
 inline void 
 ZoomCamera(simple_camera* Camera, real32 ZoomXPos, real32 ZoomYPos, int32 ZoomWeight)
 {
-    real32 OffsetX = ZoomXPos - (Camera->Width / 2.0f);
+    TIMED_FUNCTION;
+	
+	real32 OffsetX = ZoomXPos - (Camera->Width / 2.0f);
     real32 OffsetY = ZoomYPos - (Camera->Height / 2.0f);
     
     real32 WorldXBefore = Camera->Position.x + (OffsetX / Camera->Zoom);
@@ -78,6 +88,8 @@ ZoomCamera(simple_camera* Camera, real32 ZoomXPos, real32 ZoomYPos, int32 ZoomWe
 void
 DeleteOutofReachPhysicsBodies(game_state* GameState)
 {
+	TIMED_FUNCTION;
+	
 	// NOTE: Delete physics objects if they leave the zoom level 0.030 bounds
 	real32 MaxViewWidth = GameState->Camera.Width / GameState->Camera.MinZoom;
 	real32 MaxViewHeight = GameState->Camera.Height / GameState->Camera.MinZoom;

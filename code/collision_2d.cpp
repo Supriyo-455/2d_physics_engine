@@ -34,6 +34,8 @@ CreateContactPair(physics_body2D* BodyA, physics_body2D* BodyB)
 bool32
 IntersectAABBs(AABB BodyA_AABB, AABB BodyB_AABB)
 {
+	TIMED_FUNCTION;
+	
 	bool32 Collided = true;
 	
 	if(BodyB_AABB.Max.x <= BodyA_AABB.Min.x || 
@@ -54,6 +56,8 @@ FindClosestPointAndMinDistanceFromALineSegment(vec2 LineSegA,
 											   real32* MinDistance,
 											   vec2* ClosestPoint)
 {
+	TIMED_FUNCTION;
+	
 	vec2 AB = LineSegB - LineSegA;
 	vec2 AP = P - LineSegA;
 	
@@ -88,7 +92,7 @@ FindContactPointsCircleAndPolygon(vec2 CircleCenter,
 								  int PolygonVerticesCount,
 								  vec2* ContactPoint)
 {
-    TIMED_BLOCK(ContactPointsFindingBetweenBoxesAndCircles);
+    TIMED_FUNCTION;
     
 	real32 MinDistance = FLT_MAX;
     real32 Distance;
@@ -138,8 +142,8 @@ FindContactPointsBoxes(vec2* VerticesA,
 					   vec2* Contact2,
 					   uint32* ContactCount)
 {
-    TIMED_BLOCK(ContactPointsFindingBetweenBoxes);
-    
+    TIMED_FUNCTION;
+	
 	real32 MinDistance = FLT_MAX;
 	real32 Distance;
 	vec2 ClosestPoint = vec(0.0f, 0.0f);
@@ -230,6 +234,8 @@ void
 FindContactPoints(physics_body2D* BodyA, physics_body2D* BodyB, 
 				  vec2* Contact1, vec2* Contact2, uint32* ContactPoints)
 {
+	TIMED_FUNCTION;
+	
 	*Contact1 = vec(0.0f, 0.0f);
 	*Contact2 = vec(0.0f, 0.0f);
 	*ContactPoints = 0;
@@ -296,7 +302,9 @@ IntersectCircles(vec2 CenterA, real32 RadiusA,
                  vec2 CenterB, real32 RadiusB, 
                  vec2* OutNormal, real32* OutDepth)
 {
-    *OutNormal = vec(0.0f, 0.0f);
+    TIMED_FUNCTION;
+	
+	*OutNormal = vec(0.0f, 0.0f);
     *OutDepth = 0.0f;
     
     real32 distance = Distance(CenterA, CenterB);
@@ -318,7 +326,9 @@ bool32
 IntersectPolygons(physics_body2D* BodyA, physics_body2D* BodyB,
                   vec2* OutNormal, real32* OutDepth)
 {
-    *OutNormal = vec(0.0f, 0.0f);
+    TIMED_FUNCTION;
+	
+	*OutNormal = vec(0.0f, 0.0f);
     *OutDepth = FLT_MAX;
     
     vec2* VertsA = GetPhysicsBodyTransformedVertices(BodyA);
@@ -411,7 +421,9 @@ bool32
 IntersectCircleAndPolygon(physics_body2D* Circle, physics_body2D* Polygon, 
                           vec2* OutNormal, real32* OutDepth)
 {
-    Assert(Circle->Shape == CIRCLE);
+    TIMED_FUNCTION;
+	
+	Assert(Circle->Shape == CIRCLE);
     Assert(Polygon->Shape != CIRCLE);
     
     *OutNormal = vec(0.0f, 0.0f);
@@ -498,7 +510,9 @@ IntersectCircleAndPolygon(physics_body2D* Circle, physics_body2D* Polygon,
 bool32
 CheckCollision2D(physics_body2D* A, physics_body2D* B, vec2* OutNormal, real32* OutDepth)
 {
-    bool32 Result = false;
+    TIMED_FUNCTION;
+	
+	bool32 Result = false;
     
     if(A->Shape == CIRCLE && B->Shape == CIRCLE)
     {
@@ -535,6 +549,8 @@ CheckCollision2D(physics_body2D* A, physics_body2D* B, vec2* OutNormal, real32* 
 void
 ResolveCollisionWithRotation(collision_manifold* CollisionManifold)
 {
+	TIMED_FUNCTION;
+	
 	physics_body2D* A = CollisionManifold->BodyA;
 	physics_body2D* B = CollisionManifold->BodyB;
 	
@@ -708,6 +724,8 @@ ResolveCollisionWithRotation(collision_manifold* CollisionManifold)
 void
 ResolveCollisionWithOutRotation(collision_manifold* CollisionManifold)
 {
+	TIMED_FUNCTION;
+	
 	physics_body2D* A = CollisionManifold->BodyA;
 	physics_body2D* B = CollisionManifold->BodyB;
 	vec2 OutNormal = CollisionManifold->OutNormal;
@@ -763,8 +781,8 @@ ContainsContact(vec2* Contacts, uint32 ContactsCount, vec2 Target)
 void
 CollisionResolutionBroadPhase(physics_world2D* World)
 {
-    TIMED_BLOCK(CollisionBroadPhase);
-    
+    TIMED_FUNCTION;
+	
 	for(uint32 i = 0; 
 		i < World->BodyCount-1; 
 		i++)
@@ -795,8 +813,8 @@ CollisionResolutionBroadPhase(physics_world2D* World)
 void
 CollisionResolutionNarrowPhase(physics_world2D* World)
 {
-	TIMED_BLOCK(CollisionNarrowPhase);
-    
+	TIMED_FUNCTION;
+	
 	for(uint32 i = 0;
 		i < World->ContactPairsCount;
 		i++)

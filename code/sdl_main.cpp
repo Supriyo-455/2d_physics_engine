@@ -1,5 +1,6 @@
 #include "defines.h"
 #include "game_platform.h"
+#include "performance.h"
 #include <sys/stat.h>
 
 
@@ -17,6 +18,9 @@
 #define GAME_DLL_TEMP   "./game_temp.so"
 
 #endif
+
+internal void
+ExportAndRenderDebugRecords(game_memory* Memory, game_render_commands* RenderCommands);
 
 struct game_code
 {
@@ -133,7 +137,9 @@ ToSDLColor(vec4 C)
 void 
 DrawFilledCircle(SDL_Renderer* Renderer, int32 CX, int32 CY, int32 Radius, vec4 Color)
 {
-    SDL_Color C = ToSDLColor(Color);
+    TIMED_BLOCK(DrawingCirclesFilled);
+	
+	SDL_Color C = ToSDLColor(Color);
     
     SDL_SetRenderDrawColor(Renderer, C.r, C.g, C.b, C.a);
     
@@ -166,6 +172,8 @@ DrawFilledCircle(SDL_Renderer* Renderer, int32 CX, int32 CY, int32 Radius, vec4 
 void 
 DrawHollowCircle(SDL_Renderer* Renderer, int32 CX, int32 CY, int32 Radius, vec4 Color)
 {
+	TIMED_BLOCK(DrawingCirclesNonFilled);
+	
     SDL_Color C = ToSDLColor(Color);
     
     SDL_SetRenderDrawColor(Renderer, C.r, C.g, C.b, C.a);
@@ -214,6 +222,8 @@ ExecuteRenderCommands(SDL_Renderer* Renderer, TTF_Font* Font, game_render_comman
         {
             case RenderCommand_Clear:
             {
+				TIMED_BLOCK(RenderCommandClear);
+				
                 render_command_clear* Cmd = (render_command_clear*)(Commands->BufferBase + Offset);
                 
                 SDL_Color C = ToSDLColor(Cmd->Color);
@@ -228,7 +238,9 @@ ExecuteRenderCommands(SDL_Renderer* Renderer, TTF_Font* Font, game_render_comman
             
             case RenderCommand_Quad:
             {
-                render_command_quad* Cmd = (render_command_quad*)(Commands->BufferBase + Offset);
+                TIMED_BLOCK(RenderCommandQuad);
+				
+				render_command_quad* Cmd = (render_command_quad*)(Commands->BufferBase + Offset);
                 
                 SDL_Vertex Verts[4] = {};
                 SDL_Color Fill = ToSDLColor(Cmd->FillColor);
@@ -260,7 +272,9 @@ ExecuteRenderCommands(SDL_Renderer* Renderer, TTF_Font* Font, game_render_comman
             
             case RenderCommand_Circle:
             {
-                render_command_circle* Cmd = (render_command_circle*)(Commands->BufferBase + Offset);
+                TIMED_BLOCK(RenderCommandCircle);
+				
+				render_command_circle* Cmd = (render_command_circle*)(Commands->BufferBase + Offset);
                 
                 int32 CX = (int32)Cmd->Position.x;
                 int32 CY = (int32)Cmd->Position.y;
@@ -289,7 +303,9 @@ ExecuteRenderCommands(SDL_Renderer* Renderer, TTF_Font* Font, game_render_comman
             
             case RenderCommand_Line:
             {
-                render_command_line* Cmd = (render_command_line*)(Commands->BufferBase + Offset);
+                TIMED_BLOCK(RenderCommandLine);
+				
+				render_command_line* Cmd = (render_command_line*)(Commands->BufferBase + Offset);
                 
                 SDL_Color C = ToSDLColor(Cmd->Color);
                 
@@ -303,6 +319,8 @@ ExecuteRenderCommands(SDL_Renderer* Renderer, TTF_Font* Font, game_render_comman
             
             case RenderCommand_Text:
             {
+				TIMED_BLOCK(RenderCommandText);
+				
                 render_command_text* Cmd = (render_command_text*)(Commands->BufferBase + Offset);
                 
                 if(Font)
@@ -474,6 +492,8 @@ main(int argc, char* argv[])
         SDL_Event Event;
         while(SDL_PollEvent(&Event))
         {
+			TIMED_BLOCK(PollingSDLEvents);
+			
             switch(Event.type)
             {
                 case SDL_QUIT:
@@ -561,7 +581,10 @@ main(int argc, char* argv[])
             GameCode.UpdateAndRender(&Memory, NewInput, &RenderCommands);
         }
         
-        ExecuteRenderCommands(Renderer, Font, &RenderCommands);
+		// NOTE: Populating debug render commands for platform after the game layer
+		ExportAndRenderDebugRecords(&Memory, &RenderCommands);
+		
+		ExecuteRenderCommands(Renderer, Font, &RenderCommands);
         
         SDL_RenderPresent(Renderer);
         
@@ -581,4 +604,38 @@ main(int argc, char* argv[])
     free(MemoryBlock);
     
     return 0;
+}
+
+debug_record DebugRecordArray[__COUNTER__];
+
+internal void
+ExportAndRenderDebugRecords(game_memory* Memory, game_render_commands* RenderCommands)
+{
+    Memory->DebugRecordCount = (uint32)ARRAY_COUNT(DebugRecordArray);
+    Memory->DebugRecords     = DebugRecordArray;
+    
+	real32 Padding = 24.0f;
+    real32 DebugY = WINDOW_HEIGHT - 35.0f;
+    for(uint32 RecordIndex = 0; RecordIndex < (uint32)ARRAY_COUNT(DebugRecordArray); ++RecordIndex)
+    {
+        debug_record* Record = DebugRecordArray + RecordIndex;
+        if(Record->BlockName)
+        {
+            char RecordBuf[256];
+            
+            real32 MegaCycles = (real32)Record->CycleCount / (1000.0f * 1000.0f);
+            uint32 CyclesPerHit = (Record->HitCount > 0) ? (uint32)(Record->CycleCount / Record->HitCount) : 0;
+            
+            snprintf(RecordBuf, sizeof(RecordBuf),
+                     "%s: %.2f Mcy (%u hits, %u cy/hit)",
+                     Record->BlockName, MegaCycles, Record->HitCount, CyclesPerHit);
+            
+            PushText(RenderCommands, vec(20.0f, DebugY), RecordBuf, vec(1.0f, 0.0f, 0.5f, 1.0f), 20);
+            
+            DebugY -= Padding;
+            
+            Record->CycleCount = 0;
+            Record->HitCount = 0;
+        }
+    }
 }
