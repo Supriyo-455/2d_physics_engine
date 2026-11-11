@@ -78,6 +78,45 @@ UpdatePhysicsWorld2d(physics_world2D* World, real32 ElapsedTime, int Iterations)
 	}
 }
 
+// TODO: Pass only camera and bodies array? Or maybe entities 
+void
+DeleteOutofReachPhysicsBodies(game_state* GameState)
+{
+	TIMED_FUNCTION;
+	
+	// TODO: Only the delete the body from fixed position of the screen, not relative to camera position?
+	real32 MaxViewWidth = GameState->Camera.Width / GameState->Camera.MinZoom;
+	real32 MaxViewHeight = GameState->Camera.Height / GameState->Camera.MinZoom;
+	real32 BoundLeft = GameState->Camera.Position.x - (MaxViewWidth / 2.0f);
+	real32 BoundRight = GameState->Camera.Position.x + (MaxViewWidth / 2.0f);
+	real32 BoundTop = GameState->Camera.Position.y - (MaxViewHeight / 2.0f);
+	real32 BoundBottom = GameState->Camera.Position.y + (MaxViewHeight / 2.0f);
+	
+	for(uint32 i = 0; 
+		i < GameState->World->BodyCount;)
+	{
+		if(!GameState->World->Bodies[i].IsStatic)
+		{
+			AABB aabb = GetAABBFromPhysicsBody(&GameState->World->Bodies[i]);
+			if(aabb.Max.x < BoundLeft || aabb.Min.x > BoundRight || aabb.Max.y < BoundTop || aabb.Min.y > BoundBottom)
+			{
+				// TODO: Replace normal array with linkedlist for deletion
+				for(uint32 j = i; j < GameState->World->BodyCount - 1; j++)
+				{
+					GameState->World->Bodies[j] = GameState->World->Bodies[j+1];
+					GameState->BodyColors[j] = GameState->BodyColors[j+1];
+				}
+				
+				GameState->World->BodyCount -= 1;
+				GameState->BodyColorsCount -= 1;
+				
+				continue;
+			}
+		}
+		i++;
+	} 
+}
+
 void
 InitGameState(game_memory* Memory, game_state* GameState)
 {
@@ -167,6 +206,7 @@ InitGameState(game_memory* Memory, game_state* GameState)
     }
 }
 
+// TODO: Optimize this function?
 void 
 HandleInput(game_input* Input, game_state* GameState)
 {
@@ -211,6 +251,22 @@ HandleInput(game_input* Input, game_state* GameState)
     {
         GameState->HighlightCollisions = !GameState->HighlightCollisions;
     }
+	
+	if(WasPressed(Input->ChangeProfileMode))
+	{
+		if(GameState->ProfilerMode == NO_PROFILING)
+		{
+			GameState->ProfilerMode = HOST_PROFILE;
+		}
+		else if(GameState->ProfilerMode == HOST_PROFILE)
+		{
+			GameState->ProfilerMode = GAME_PROFILE;
+		}
+		else
+		{
+			GameState->ProfilerMode = NO_PROFILING;
+		}
+	}
 }
 
 extern "C" 
@@ -228,11 +284,13 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     
     HandleInput(Input, GameState);
     
+	// TODO: Handle physics in a seperate thread?
     UpdatePhysicsWorld2d(GameState->World, Input->dtForFrame, 128);
     DeleteOutofReachPhysicsBodies(GameState);
     
     PushClear(RenderCommands, vec(0.00f, 0.00f, 0.00f, 1.0f));
     
+	// TODO: register render commands in separate thread?
     for(uint32 i = 0; 
         i < GameState->World->BodyCount; 
         i++)
@@ -264,17 +322,24 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         }
     }
     
+	// TODO: Use temporary memory?
     char Buf[128];
     int FPS = (Input->dtForFrame > 0.0001f) ? (int)(1.0f / Input->dtForFrame) : 0;
     snprintf(Buf, sizeof(Buf), "FPS: %d | Bodies: %d | Zoom: %0.2f  [C/Click: Circle, B: Box, R: Reset]", 
              FPS, GameState->World->BodyCount, GameState->Camera.Zoom);
     PushText(RenderCommands, vec(20.0f, 20.0f), Buf, WHITE, 24);
     
-    ExportAndRenderDebugRecords(Memory, RenderCommands);
+	Memory->ProfilerMode = GameState->ProfilerMode;
+	
+	if(Memory->ProfilerMode == GAME_PROFILE)
+	{
+		ExportAndRenderDebugRecords(Memory, RenderCommands);
+	}
 }
 
 debug_record DebugRecordArray[__COUNTER__];
 
+// TODO: Create a debug ui framework, or integrate Dear-Imgui
 internal void
 ExportAndRenderDebugRecords(game_memory* Memory, game_render_commands* RenderCommands)
 {
@@ -287,6 +352,7 @@ ExportAndRenderDebugRecords(game_memory* Memory, game_render_commands* RenderCom
         debug_record* Record = DebugRecordArray + RecordIndex;
         if(Record->BlockName)
         {
+			// TODO: Use temporary memory?
             char RecordBuf[256];
             
             real32 MegaCycles = (real32)Record->CycleCount / (1000.0f * 1000.0f);
@@ -296,7 +362,7 @@ ExportAndRenderDebugRecords(game_memory* Memory, game_render_commands* RenderCom
                      "%s: %.2f Mcy (%u hits, %u cy/hit)",
                      Record->BlockName, MegaCycles, Record->HitCount, CyclesPerHit);
             
-            PushText(RenderCommands, vec(20.0f, DebugY), RecordBuf, YELLOW, 20);
+            PushText(RenderCommands, vec(20.0f, DebugY), RecordBuf, YELLOW, 10);
             
             DebugY += 24.0f;
             

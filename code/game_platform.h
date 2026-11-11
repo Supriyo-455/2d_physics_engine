@@ -31,6 +31,7 @@ struct game_input
             game_button_state Reset;
             game_button_state ToggleWireframe;
             game_button_state HighlightCollisions;
+			game_button_state ChangeProfileMode;
             game_button_state MoveLeft;
             game_button_state MoveRight;
             game_button_state MoveUp;
@@ -46,6 +47,13 @@ WasPressed(game_button_state State)
             (State.HalfTransitionCount == 1 && State.EndedDown));
 }
 
+enum profiler_mode
+{
+	NO_PROFILING = 0,
+	HOST_PROFILE = 1,
+	GAME_PROFILE = 2
+};
+
 struct game_memory
 {
     bool32 IsInitialized;
@@ -58,6 +66,8 @@ struct game_memory
     
     uint32 DebugRecordCount;
     debug_record* DebugRecords;
+	
+	profiler_mode ProfilerMode;
 };
 
 enum render_command_type

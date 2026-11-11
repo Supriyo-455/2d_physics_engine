@@ -58,6 +58,8 @@ struct game_state
     
     bool32 HighlightCollisions;
     bool32 WireframeMode;
+	
+	profiler_mode ProfilerMode;
 };
 
 #endif //GAME_H

@@ -1,4 +1,5 @@
 
+// TODO: Fix deletion logic for bodies out of screen bounds
 inline bool32 
 IsVisible(real32 ObjectX, real32 ObjectY,
           real32 ObjectWidth, real32 ObjectHeight,
@@ -82,43 +83,4 @@ ZoomCamera(simple_camera* Camera, real32 ZoomXPos, real32 ZoomYPos, int32 ZoomWe
     
     Camera->Position.x = WorldXBefore - (OffsetX / Camera->Zoom);
     Camera->Position.y = WorldYBefore - (OffsetY / Camera->Zoom);
-}
-
-// TODO: Pass only camera and bodies array? Or maybe entities 
-void
-DeleteOutofReachPhysicsBodies(game_state* GameState)
-{
-	TIMED_FUNCTION;
-	
-	// NOTE: Delete physics objects if they leave the zoom level 0.030 bounds
-	real32 MaxViewWidth = GameState->Camera.Width / GameState->Camera.MinZoom;
-	real32 MaxViewHeight = GameState->Camera.Height / GameState->Camera.MinZoom;
-	real32 BoundLeft = GameState->Camera.Position.x - (MaxViewWidth / 2.0f);
-	real32 BoundRight = GameState->Camera.Position.x + (MaxViewWidth / 2.0f);
-	real32 BoundTop = GameState->Camera.Position.y - (MaxViewHeight / 2.0f);
-	real32 BoundBottom = GameState->Camera.Position.y + (MaxViewHeight / 2.0f);
-	
-	for(uint32 i = 0; 
-		i < GameState->World->BodyCount;)
-	{
-		if(!GameState->World->Bodies[i].IsStatic)
-		{
-			AABB aabb = GetAABBFromPhysicsBody(&GameState->World->Bodies[i]);
-			if(aabb.Max.x < BoundLeft || aabb.Min.x > BoundRight || aabb.Max.y < BoundTop || aabb.Min.y > BoundBottom)
-			{
-				// TODO: Replace normal array with linkedlist for deletion
-				for(uint32 j = i; j < GameState->World->BodyCount - 1; j++)
-				{
-					GameState->World->Bodies[j] = GameState->World->Bodies[j+1];
-					GameState->BodyColors[j] = GameState->BodyColors[j+1];
-				}
-				
-				GameState->World->BodyCount -= 1;
-				GameState->BodyColorsCount -= 1;
-				
-				continue;
-			}
-		}
-		i++;
-	} 
 }

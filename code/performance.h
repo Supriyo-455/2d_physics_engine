@@ -14,6 +14,7 @@ extern struct debug_record DebugRecordArray[];
 
 #if ENGINE_DEBUG
 
+// TODO: Tree structure for related timed_blocks and timed_functions?
 struct timed_block
 {
     debug_record* Record;

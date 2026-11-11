@@ -4,8 +4,8 @@
 #include <sys/stat.h>
 
 
-#define WINDOW_WIDTH 1300
-#define WINDOW_HEIGHT 800
+#define WINDOW_WIDTH  1300
+#define WINDOW_HEIGHT 1000
 
 #if defined(_WIN32)
 
@@ -251,6 +251,7 @@ ExecuteRenderCommands(SDL_Renderer* Renderer, TTF_Font* Font, game_render_comman
                     Verts[v].color = Fill;
                 }
                 
+				// TODO: Why we have to specify indices specifically?
                 int Indices[] = { 0, 1, 3, 1, 2, 3 };
                 SDL_RenderGeometry(Renderer, NULL, Verts, 4, Indices, 6);
                 if(Cmd->HasOutline)
@@ -334,7 +335,12 @@ ExecuteRenderCommands(SDL_Renderer* Renderer, TTF_Font* Font, game_render_comman
                         
                         if(Texture)
                         {
-                            SDL_Rect DestRect = { (int)Cmd->Position.x, (int)Cmd->Position.y, Surface->w, Surface->h };
+                            SDL_Rect DestRect = {
+								(int)Cmd->Position.x, 
+								(int)Cmd->Position.y, 
+								Surface->w, 
+								Surface->h 
+							};
                             SDL_RenderCopy(Renderer, Texture, NULL, &DestRect);
                             SDL_DestroyTexture(Texture);
                         }
@@ -342,7 +348,8 @@ ExecuteRenderCommands(SDL_Renderer* Renderer, TTF_Font* Font, game_render_comman
                         SDL_FreeSurface(Surface);
                     }
                 }
-                Offset += sizeof(render_command_text);
+                
+				Offset += sizeof(render_command_text);
             }
             break;
         }
@@ -414,9 +421,13 @@ main(int argc, char* argv[])
         return -1;
     }
     
+	
     char* BasePath = SDL_GetBasePath();
-    char SourceDLLPath[1024];
+    // TODO: Use temporary memory?
+	char SourceDLLPath[1024];
+	// TODO: Use temporary memory?
     char TempDLLPath[1024];
+	// TODO: Use temporary memory?
     char LockFilePath[1024];
     if(BasePath)
     {
@@ -431,6 +442,8 @@ main(int argc, char* argv[])
         snprintf(LockFilePath, sizeof(LockFilePath), "lock.tmp");
     }
     
+	// TODO: Customizable font during execution?
+	// TODO: Use temporary memory?
     char FontPath[1024] = "assets/font/Consolas-Regular.ttf";
     TTF_Font* Font = TTF_OpenFont(FontPath, 20);
     if(!Font && BasePath)
@@ -485,10 +498,12 @@ main(int argc, char* argv[])
         NewInput->MouseWheelDelta = 0;
         NewInput->MouseRel = vec(0.0f, 0.0f);
         
+		// TODO: Why there is two different initialization for mouse position?
         int MouseX = 0, MouseY = 0;
         SDL_GetMouseState(&MouseX, &MouseY);
         NewInput->MousePos = vec((real32)MouseX, (real32)MouseY);
         
+		// TODO: Compress this code into a function?
         SDL_Event Event;
         while(SDL_PollEvent(&Event))
         {
@@ -505,7 +520,8 @@ main(int argc, char* argv[])
                 
                 case SDL_MOUSEMOTION:
                 {
-                    NewInput->MousePos = vec((real32)Event.motion.x, (real32)Event.motion.y);
+					// TODO: Why there is two different initialization for mouse position?
+					NewInput->MousePos = vec((real32)Event.motion.x, (real32)Event.motion.y);
                     NewInput->MouseRel.x += (real32)Event.motion.xrel;
                     NewInput->MouseRel.y += (real32)Event.motion.yrel;
                 } 
@@ -536,6 +552,7 @@ main(int argc, char* argv[])
                     bool32 IsDown = (Event.key.state == SDL_PRESSED);
                     SDL_Keycode Key = Event.key.keysym.sym;
                     
+					// TODO: Refractor this
                     if(Key == SDLK_c)         
                         ProcessButton(&NewInput->SpawnCircle, IsDown);
                     if(Key == SDLK_b)         
@@ -554,7 +571,9 @@ main(int argc, char* argv[])
                         ProcessButton(&NewInput->MoveDown, IsDown);
                     if(Key == SDLK_LALT)
                         ProcessButton(&NewInput->HighlightCollisions, IsDown);
-                    if(Key == SDLK_ESCAPE)
+                    if(Key == SDLK_LCTRL)
+						ProcessButton(&NewInput->ChangeProfileMode, IsDown);
+					if(Key == SDLK_ESCAPE)
                     {
                         LOG_INFO("Escape pressed. Exiting...");
                         Running = false;
@@ -581,8 +600,11 @@ main(int argc, char* argv[])
             GameCode.UpdateAndRender(&Memory, NewInput, &RenderCommands);
         }
         
-		// NOTE: Populating debug render commands for platform after the game layer
-		ExportAndRenderDebugRecords(&Memory, &RenderCommands);
+		if(Memory.ProfilerMode == HOST_PROFILE)
+		{
+			// NOTE: Populating debug render commands for platform after the game layer
+			ExportAndRenderDebugRecords(&Memory, &RenderCommands);
+		}
 		
 		ExecuteRenderCommands(Renderer, Font, &RenderCommands);
         
@@ -608,6 +630,7 @@ main(int argc, char* argv[])
 
 debug_record DebugRecordArray[__COUNTER__];
 
+// TODO: Create a debug ui framework, or integrate Dear-Imgui
 internal void
 ExportAndRenderDebugRecords(game_memory* Memory, game_render_commands* RenderCommands)
 {
@@ -621,6 +644,7 @@ ExportAndRenderDebugRecords(game_memory* Memory, game_render_commands* RenderCom
         debug_record* Record = DebugRecordArray + RecordIndex;
         if(Record->BlockName)
         {
+			// TODO: Use temporary memory?
             char RecordBuf[256];
             
             real32 MegaCycles = (real32)Record->CycleCount / (1000.0f * 1000.0f);
@@ -630,7 +654,7 @@ ExportAndRenderDebugRecords(game_memory* Memory, game_render_commands* RenderCom
                      "%s: %.2f Mcy (%u hits, %u cy/hit)",
                      Record->BlockName, MegaCycles, Record->HitCount, CyclesPerHit);
             
-            PushText(RenderCommands, vec(20.0f, DebugY), RecordBuf, vec(1.0f, 0.0f, 0.5f, 1.0f), 20);
+            PushText(RenderCommands, vec(20.0f, DebugY), RecordBuf, vec(1.0f, 0.0f, 0.5f, 1.0f), 10);
             
             DebugY -= Padding;
             
