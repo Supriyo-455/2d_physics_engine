@@ -103,23 +103,6 @@ stateDiagram-v2
     NO_PROFILING --> HOST_PROFILE : Left Ctrl
     HOST_PROFILE --> GAME_PROFILE : Left Ctrl
     GAME_PROFILE --> NO_PROFILING : Left Ctrl
-
-    note right of HOST_PROFILE
-      Platform Host Telemetry (Magenta)
-      - Event polling (SDL_PollEvent)
-      - Render command execution
-      - SDL presentation & buffer swap
-      - Hot-reload file polling
-    end note
-
-    note right of GAME_PROFILE
-      Simulation Telemetry (Yellow)
-      - Sub-step physics integration
-      - Broadphase AABB pruning
-      - Narrowphase SAT collision & manifolds
-      - WorldToScreen camera transforms
-      - Out-of-bounds body culling
-    end note
 ```
 
 - **Off (`NO_PROFILING`)**: Clean viewport with minimal HUD (FPS, Body count, Zoom level).
