@@ -18,6 +18,7 @@ AABB
 };
 
 // TODO: Cache AABB information?
+// TODO: Abstract out related data, optimize the fat struct
 struct
 physics_body2D
 {

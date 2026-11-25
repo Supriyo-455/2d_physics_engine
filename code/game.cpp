@@ -85,8 +85,8 @@ DeleteOutofReachPhysicsBodies(game_state* GameState)
 	TIMED_FUNCTION;
 	
 	// TODO: Only the delete the body from fixed position of the screen, not relative to camera position?
-	real32 MaxViewWidth = GameState->Camera.Width / GameState->Camera.MinZoom;
-	real32 MaxViewHeight = GameState->Camera.Height / GameState->Camera.MinZoom;
+	real32 MaxViewWidth = WINDOW_WIDTH / GameState->Camera.MinZoom;
+	real32 MaxViewHeight = WINDOW_HEIGHT / GameState->Camera.MinZoom;
 	real32 BoundLeft = GameState->Camera.Position.x - (MaxViewWidth / 2.0f);
 	real32 BoundRight = GameState->Camera.Position.x + (MaxViewWidth / 2.0f);
 	real32 BoundTop = GameState->Camera.Position.y - (MaxViewHeight / 2.0f);
@@ -322,13 +322,17 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         }
     }
     
-	// TODO: Use temporary memory?
-    char Buf[128];
-    int FPS = (Input->dtForFrame > 0.0001f) ? (int)(1.0f / Input->dtForFrame) : 0;
-    snprintf(Buf, sizeof(Buf), "FPS: %d | Bodies: %d | Zoom: %0.2f  [C/Click: Circle, B: Box, R: Reset]", 
-             FPS, GameState->World->BodyCount, GameState->Camera.Zoom);
-    PushText(RenderCommands, vec(20.0f, 20.0f), Buf, WHITE, 24);
+	temp_memory_arena TempArena = TempMemoryArenaBegin(&GameState->WorldArena);
     
+	int BufferSize = 1024;
+	char* Buffer = PushArray(TempArena.Arena, BufferSize, char);
+    int FPS = (Input->dtForFrame > 0.0001f) ? (int)(1.0f / Input->dtForFrame) : 0;
+    snprintf(Buffer, BufferSize, "FPS: %d | Bodies: %d | Zoom: %0.2f  [C/Click: Circle, B: Box, R: Reset]", 
+             FPS, GameState->World->BodyCount, GameState->Camera.Zoom);
+    PushText(RenderCommands, vec(20.0f, 20.0f), Buffer, WHITE, 24);
+    
+	TempMemoryArenaEnd(TempArena);
+	
 	Memory->ProfilerMode = GameState->ProfilerMode;
 	
 	if(Memory->ProfilerMode == GAME_PROFILE)
@@ -343,31 +347,41 @@ debug_record DebugRecordArray[__COUNTER__];
 internal void
 ExportAndRenderDebugRecords(game_memory* Memory, game_render_commands* RenderCommands)
 {
-    Memory->DebugRecordCount = (uint32)ARRAY_COUNT(DebugRecordArray);
-    Memory->DebugRecords     = DebugRecordArray;
-    
-    real32 DebugY = 50.0f;
-    for(uint32 RecordIndex = 0; RecordIndex < (uint32)ARRAY_COUNT(DebugRecordArray); ++RecordIndex)
-    {
-        debug_record* Record = DebugRecordArray + RecordIndex;
-        if(Record->BlockName)
-        {
-			// TODO: Use temporary memory?
-            char RecordBuf[256];
-            
-            real32 MegaCycles = (real32)Record->CycleCount / (1000.0f * 1000.0f);
-            uint32 CyclesPerHit = (Record->HitCount > 0) ? (uint32)(Record->CycleCount / Record->HitCount) : 0;
-            
-            snprintf(RecordBuf, sizeof(RecordBuf),
-                     "%s: %.2f Mcy (%u hits, %u cy/hit)",
-                     Record->BlockName, MegaCycles, Record->HitCount, CyclesPerHit);
-            
-            PushText(RenderCommands, vec(20.0f, DebugY), RecordBuf, YELLOW, 10);
-            
-            DebugY += 24.0f;
-            
-            Record->CycleCount = 0;
-            Record->HitCount = 0;
-        }
+	if(Memory->IsInitialized)
+	{
+		Assert(sizeof(game_state) <= Memory->PermanentStorageSize);
+		game_state* GameState = (game_state*)Memory->PermanentStorage;
+		
+		Memory->DebugRecordCount = (uint32)ARRAY_COUNT(DebugRecordArray);
+		Memory->DebugRecords     = DebugRecordArray;
+		
+		real32 DebugY = 50.0f;
+		for(uint32 RecordIndex = 0; RecordIndex < (uint32)ARRAY_COUNT(DebugRecordArray); ++RecordIndex)
+		{
+			debug_record* Record = DebugRecordArray + RecordIndex;
+			if(Record->BlockName)
+			{
+				temp_memory_arena TempArena = TempMemoryArenaBegin(&GameState->WorldArena);
+				
+				int RecordBufferSize = 1024;
+				char* RecordBuffer = PushArray(TempArena.Arena, RecordBufferSize, char);
+				
+				real32 MegaCycles = (real32)Record->CycleCount / (1000.0f * 1000.0f);
+				uint32 CyclesPerHit = (Record->HitCount > 0) ? (uint32)(Record->CycleCount / Record->HitCount) : 0;
+				
+				snprintf(RecordBuffer, RecordBufferSize,
+						 "%s: %.2f Mcy (%u hits, %u cy/hit)",
+						 Record->BlockName, MegaCycles, Record->HitCount, CyclesPerHit);
+				
+				PushText(RenderCommands, vec(20.0f, DebugY), RecordBuffer, YELLOW, 10);
+				
+				DebugY += 24.0f;
+				
+				Record->CycleCount = 0;
+				Record->HitCount = 0;
+				
+				TempMemoryArenaEnd(TempArena);
+			}
+		}
     }
 }

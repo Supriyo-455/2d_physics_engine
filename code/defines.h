@@ -65,6 +65,9 @@ typedef double real64;
 
 #define SWAP(TYPE, A, B) { TYPE _MACRO_TEMP_; _MACRO_TEMP_ = A; A = B; B = _MACRO_TEMP_; } 
 
+#define WINDOW_WIDTH  1300
+#define WINDOW_HEIGHT 1000
+
 // TODO: Use Arena Allocator and dump logs to file?
 void 
 __LogMessage(FILE* Stream, const char* File, int Line, const char* Prefix, const char* Format, ...) {

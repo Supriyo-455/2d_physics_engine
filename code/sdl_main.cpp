@@ -3,10 +3,6 @@
 #include "performance.h"
 #include <sys/stat.h>
 
-
-#define WINDOW_WIDTH  1300
-#define WINDOW_HEIGHT 1000
-
 #if defined(_WIN32)
 
 #define GAME_DLL_SOURCE "game.dll"
@@ -160,6 +156,7 @@ DrawFilledCircle(SDL_Renderer* Renderer, int32 CX, int32 CY, int32 Radius, vec4 
             P += 2 * X + 1;
         }
         
+		// TODO: SIMD?
         SDL_RenderDrawLine(Renderer, CX - X, CY + Y, CX + X, CY + Y);
         SDL_RenderDrawLine(Renderer, CX - X, CY - Y, CX + X, CY - Y);
         SDL_RenderDrawLine(Renderer, CX - Y, CY + X, CX + Y, CY + X);
@@ -195,6 +192,7 @@ DrawHollowCircle(SDL_Renderer* Renderer, int32 CX, int32 CY, int32 Radius, vec4 
             P += 2 * X + 1;
         }
         
+		// TODO: SIMD?
         SDL_RenderDrawPoint(Renderer, CX + X, CY + Y);
         SDL_RenderDrawPoint(Renderer, CX - X, CY + Y);
         SDL_RenderDrawPoint(Renderer, CX + X, CY - Y);
@@ -252,7 +250,8 @@ ExecuteRenderCommands(SDL_Renderer* Renderer, TTF_Font* Font, game_render_comman
                 }
                 
 				// TODO: Why we have to specify indices specifically?
-                int Indices[] = { 0, 1, 3, 1, 2, 3 };
+                // TODO: SIMD?
+				int Indices[] = { 0, 1, 3, 1, 2, 3 };
                 SDL_RenderGeometry(Renderer, NULL, Verts, 4, Indices, 6);
                 if(Cmd->HasOutline)
                 {
@@ -275,6 +274,7 @@ ExecuteRenderCommands(SDL_Renderer* Renderer, TTF_Font* Font, game_render_comman
             {
                 TIMED_BLOCK(RenderCommandCircle);
 				
+                // TODO: SIMD?
 				render_command_circle* Cmd = (render_command_circle*)(Commands->BufferBase + Offset);
                 
                 int32 CX = (int32)Cmd->Position.x;
@@ -290,7 +290,7 @@ ExecuteRenderCommands(SDL_Renderer* Renderer, TTF_Font* Font, game_render_comman
                 }
                 
                 // NOTE: Orientation line for the circle
-                SDL_Color Out = ToSDLColor(Cmd->OutlineColor);
+				SDL_Color Out = ToSDLColor(Cmd->OutlineColor);
                 SDL_SetRenderDrawColor(Renderer, Out.r, Out.g, Out.b, Out.a);
                 
                 real32 TargetX = Cmd->Position.x + Cmd->Radius * Cos(Cmd->Angle);
@@ -424,11 +424,14 @@ main(int argc, char* argv[])
 	
     char* BasePath = SDL_GetBasePath();
     // TODO: Use temporary memory?
+	// QUESTION: In platform dependent code can we directly use MemoryArena Initialized from game?
 	char SourceDLLPath[1024];
 	// TODO: Use temporary memory?
-    char TempDLLPath[1024];
+    // QUESTION: In platform dependent code can we directly use MemoryArena Initialized from game?
+	char TempDLLPath[1024];
 	// TODO: Use temporary memory?
-    char LockFilePath[1024];
+    // QUESTION: In platform dependent code can we directly use MemoryArena Initialized from game?
+	char LockFilePath[1024];
     if(BasePath)
     {
         snprintf(SourceDLLPath, sizeof(SourceDLLPath), "%s%s", BasePath, GAME_DLL_SOURCE);
@@ -444,7 +447,8 @@ main(int argc, char* argv[])
     
 	// TODO: Customizable font during execution?
 	// TODO: Use temporary memory?
-    char FontPath[1024] = "assets/font/Consolas-Regular.ttf";
+    // QUESTION: In platform dependent code can we directly use MemoryArena Initialized from game?
+	char FontPath[1024] = "assets/font/Consolas-Regular.ttf";
     TTF_Font* Font = TTF_OpenFont(FontPath, 20);
     if(!Font && BasePath)
     {
@@ -645,7 +649,8 @@ ExportAndRenderDebugRecords(game_memory* Memory, game_render_commands* RenderCom
         if(Record->BlockName)
         {
 			// TODO: Use temporary memory?
-            char RecordBuf[256];
+            // QUESTION: In platform dependent code can we directly use MemoryArena Initialized from game?
+			char RecordBuf[256];
             
             real32 MegaCycles = (real32)Record->CycleCount / (1000.0f * 1000.0f);
             uint32 CyclesPerHit = (Record->HitCount > 0) ? (uint32)(Record->CycleCount / Record->HitCount) : 0;
